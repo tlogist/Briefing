@@ -585,6 +585,7 @@ struct MenuBarPopover: View {
 
         let service = ClaudeAPIService()
         let things = thingsService
+        let fileService = TaskFileService(settings: settings)
         let system = buildChatSystemPrompt()
         let tools = Self.chatTools
         var history = chatHistory
@@ -619,7 +620,8 @@ struct MenuBarPopover: View {
                             let result = await Self.executeTool(
                                 name: toolUse.name,
                                 input: toolUse.input,
-                                thingsService: things
+                                thingsService: things,
+                                taskFileService: fileService
                             )
                             toolResults.append([
                                 "type": "tool_result",
@@ -642,8 +644,12 @@ struct MenuBarPopover: View {
                         chatMessages.append(ChatDisplayMessage(role: .assistant, content: finalText))
                     }
                     isChatting = false
-                    // Refresh tasks in case Claude modified them
-                    Task { await loadTasks() }
+                    // Refresh tasks in case Claude modified them, then
+                    // invalidate any briefing that references the old task state
+                    Task {
+                        await loadTasks()
+                        invalidateStaleBriefings()
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -732,7 +738,8 @@ struct MenuBarPopover: View {
     static func executeTool(
         name: String,
         input: [String: Any],
-        thingsService: ThingsService
+        thingsService: ThingsService,
+        taskFileService: TaskFileService
     ) async -> String {
         switch name {
         case "add_task":
@@ -765,6 +772,19 @@ struct MenuBarPopover: View {
                     return "Could not find task named '\(taskName)'"
                 }
                 try await thingsService.completeTask(id: task.id)
+
+                // Also mark the task complete in todo.md so the file
+                // stays in sync with Things 3. Without this, the next
+                // briefing prompt would still include the task from the file.
+                do {
+                    var doc = try await taskFileService.readTodoFile()
+                    MarkdownWriter.completeTask(named: task.name, in: &doc)
+                    try await taskFileService.writeTodoFile(doc)
+                } catch {
+                    // Non-fatal — Things 3 is the source of truth
+                    return "Task '\(task.name)' completed in Things 3 (todo.md update failed: \(error.localizedDescription))"
+                }
+
                 return "Task '\(task.name)' marked as complete."
             } catch {
                 return "Error completing task: \(error.localizedDescription)"
@@ -827,6 +847,34 @@ struct MenuBarPopover: View {
             freeWindows: freeWindows,
             todayTasks: todayTasks
         )
+
+        // Invalidate cached briefings if the task data has changed since
+        // the briefing was generated. This prevents showing stale briefings
+        // that mention tasks the user has already completed.
+        invalidateStaleBriefings()
+    }
+
+    /// Compare current task data against what each cached briefing was
+    /// generated with. If tasks have changed (completed, added, etc.),
+    /// clear the stale briefing from both in-memory and disk cache.
+    private func invalidateStaleBriefings() {
+        // Fetch all tasks for a full fingerprint (briefing uses all tasks, not just today's)
+        let currentFingerprint = BriefingResult.fingerprint(from: todayTasks)
+
+        for scope in [BriefingScope.today, .week] {
+            if let cached = briefingCache[scope],
+               !cached.taskFingerprint.isEmpty,
+               cached.taskFingerprint != currentFingerprint {
+                // Tasks changed — this briefing is stale
+                briefingCache.removeValue(forKey: scope)
+                BriefingCache.remove(for: scope)
+
+                // If we're currently displaying this stale briefing, reset to idle
+                if case .complete(let shown) = briefingStatus, shown.id == cached.id {
+                    briefingStatus = .idle
+                }
+            }
+        }
     }
 
     private func loadCalendar() async {

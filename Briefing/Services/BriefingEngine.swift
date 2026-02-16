@@ -72,7 +72,12 @@ actor BriefingEngine {
             conflictCount: calendar.conflicts.count,
             freeWindowCount: calendar.freeWindows.count,
             taskCount: tasks.count,
-            syncDiffCount: 0
+            syncDiffCount: 0,
+            // Fingerprint today's tasks only — this is what the popover can compare
+            // against to detect staleness (it only has today's tasks loaded)
+            taskFingerprint: BriefingResult.fingerprint(
+                from: tasks.filter { $0.list == .today }
+            )
         )
 
         onStatusChange(.complete(result))

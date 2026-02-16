@@ -18,6 +18,11 @@ struct BriefingResult: Identifiable, Codable {
     let taskCount: Int
     let syncDiffCount: Int
 
+    // Fingerprint of the task data used to generate this briefing.
+    // Sorted task names joined — lets us detect when tasks change
+    // (completed, added, renamed) and the cached briefing is stale.
+    let taskFingerprint: String
+
     init(
         generatedAt: Date,
         markdownContent: String,
@@ -29,7 +34,8 @@ struct BriefingResult: Identifiable, Codable {
         conflictCount: Int,
         freeWindowCount: Int,
         taskCount: Int,
-        syncDiffCount: Int
+        syncDiffCount: Int,
+        taskFingerprint: String = ""
     ) {
         self.id = UUID()
         self.generatedAt = generatedAt
@@ -43,6 +49,16 @@ struct BriefingResult: Identifiable, Codable {
         self.freeWindowCount = freeWindowCount
         self.taskCount = taskCount
         self.syncDiffCount = syncDiffCount
+        self.taskFingerprint = taskFingerprint
+    }
+
+    /// Build a fingerprint from a list of tasks — sorted names joined.
+    /// Two fingerprints match only if the exact same set of tasks (by name) was used.
+    static func fingerprint(from tasks: [BriefingTask]) -> String {
+        tasks.filter { !$0.isCompleted }
+            .map { $0.name }
+            .sorted()
+            .joined(separator: "|")
     }
 }
 
@@ -104,5 +120,9 @@ enum BriefingCache {
             return nil
         }
         return try? JSONDecoder().decode(BriefingResult.self, from: data)
+    }
+
+    static func remove(for scope: BriefingScope) {
+        UserDefaults.standard.removeObject(forKey: prefix + scope.rawValue)
     }
 }
