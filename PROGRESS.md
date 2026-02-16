@@ -9,7 +9,71 @@
 
 ---
 
-## Status: Phase 4 Complete — Claude API + briefing generation working
+## Status: Phase 4+ Complete — Briefing generation, PDF export, chat, caching all working
+
+---
+
+### Session: UI/UX Improvements + Chat + Caching (2026-02-16)
+
+Extensive cross-cutting work spanning phases 4-5 and general polish.
+
+#### Briefing scope and buttons
+- [x] Split single "Generate Briefing" into **"Today's Briefing"** and **"Week's Briefing"**
+- [x] Moved briefing buttons to the **top** of the popover (above calendar/tasks)
+- [x] BriefingScope enum (.today / .week) controls whether BriefingEngine fetches today-only or week-ahead events
+- [x] Prompt template heading dynamically adjusted per scope ("Calendar Events (Today)" vs "Next 7 Days")
+
+#### Briefing caching
+- [x] BriefingResult + BriefingScope made Codable, persisted to UserDefaults per scope
+- [x] Today/Week buttons **show cached results instantly** — only the Refresh icon forces a new Claude call
+- [x] Active scope visually highlighted (bold/primary vs regular/secondary)
+- [x] Cache survives app restarts
+
+#### PDF export
+- [x] Export icon (arrow.down.doc) next to "Briefing" header in completed result
+- [x] Uses NSPrintOperation — native print dialog with built-in "Save as PDF"
+- [x] Scope-aware titles: "Briefing - February 16, 2026" or "Briefing - Week of February 16, 2026"
+- [x] Closes popover first so print dialog isn't blocked
+
+#### Claude chat input bar
+- [x] Persistent TextField between Quit and Settings in footer
+- [x] Auto-expands vertically as text wraps (up to 5 lines), submits on Return
+- [x] Extended ClaudeAPIService with `sendChat` method (multi-turn messages + tool_use support)
+- [x] System prompt includes current calendar events and tasks for context
+- [x] **Tool use for Things 3:** `add_task` (creates via URL scheme) and `complete_task` (finds by name, completes via JXA)
+- [x] Tool_use loop: Claude can chain multiple tool calls before final text response
+- [x] Chat bubbles in scroll view (blue tint for user, grey for Claude, markdown rendered)
+- [x] Spinner in input bar while Claude is responding
+- [x] Task list auto-refreshes after tool execution
+
+#### Popover data caching (stale-while-revalidate)
+- [x] PopoverDataCache serializes calendar events, conflicts, free windows, and tasks to UserDefaults
+- [x] On popover open: cached data appears **instantly** (no spinner), live refresh runs in background
+- [x] Loading spinner only shown on very first launch with no cache
+- [x] Made CalendarEvent, FreeWindow, ConflictPair, BriefingTask all Codable for serialization
+
+#### Refresh indicator
+- [x] Tiny spinner in header during background EventKit + Things 3 refresh
+- [x] "Last updated" relative timestamp: "just now", "2m ago", "1h ago"
+- [x] Updates every 60 seconds via existing timer
+
+#### Files modified
+| File | Changes |
+|------|---------|
+| `Briefing/Models/Briefing.swift` | Added BriefingScope enum, BriefingCache helper, made BriefingResult Codable |
+| `Briefing/Models/CalendarEvent.swift` | Added Codable to CalendarEvent, FreeWindow, ConflictPair, CalendarOwner; added memberwise inits |
+| `Briefing/Models/Task.swift` | Added Codable to TaskList, TaskSource, BriefingTask |
+| `Briefing/Services/ClaudeAPIService.swift` | Added ChatResponse struct and sendChat method with tool_use support; refactored sendMessage to use sendChat |
+| `Briefing/Services/BriefingEngine.swift` | Added scope parameter, scope-aware calendar fetching, scope-aware prompt heading |
+| `Briefing/Views/MenuBarPopover.swift` | Briefing at top, two scope buttons, PDF export, chat input + bubbles, popover cache, refresh indicator |
+| `TODO.md` | Marked performance cache items as done |
+
+#### Key implementation details
+
+- **Stale-while-revalidate:** `PopoverDataCache.restore()` fills the state arrays immediately, returning `true` to skip the spinner. `loadAll()` then refreshes live and calls `PopoverDataCache.save()`. Only the first-ever launch shows a spinner.
+- **Tool_use loop:** `sendChatMessage()` sends messages to Claude with tool definitions. If Claude's `stop_reason` is `"tool_use"`, it executes each tool via `executeTool()`, sends tool results back, and loops until Claude returns final text.
+- **`complete_task` tool** fetches all tasks, finds by case-insensitive name match, then completes by Things 3 ID.
+- **Chat history** is stored as `[[String: Any]]` to support both plain text messages and tool_use/tool_result content blocks in the Anthropic API format.
 
 ---
 
