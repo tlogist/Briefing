@@ -356,7 +356,7 @@ struct MenuBarPopover: View {
                         Label("Briefing", systemImage: "sparkles")
                             .font(.subheadline.weight(.semibold))
 
-                        Button(action: { exportToPDF(result) }) {
+                        Button(action: { exportToPDF(result, scope: currentScope) }) {
                             Image(systemName: "arrow.down.doc")
                                 .font(.caption)
                         }
@@ -426,9 +426,17 @@ struct MenuBarPopover: View {
 
     /// Export the briefing to PDF via the system print dialog.
     /// The native dialog includes "Save as PDF" — no custom rendering needed.
-    private func exportToPDF(_ result: BriefingResult) {
+    private func exportToPDF(_ result: BriefingResult, scope: BriefingScope) {
         // Close the popover so the print dialog isn't blocked
         NSApp.keyWindow?.close()
+
+        // Build a title like "Briefing - February 16, 2026" or "Briefing - Week of February 16, 2026"
+        let dateStr = DateFormatting.dateReadable.string(from: result.generatedAt)
+        let title: String
+        switch scope {
+        case .today: title = "Briefing - \(dateStr)"
+        case .week:  title = "Briefing - Week of \(dateStr)"
+        }
 
         // Build an attributed string from the markdown content.
         // NSAttributedString(markdown:) (macOS 12+) handles basic formatting.
@@ -459,6 +467,8 @@ struct MenuBarPopover: View {
         printInfo.leftMargin = 72
         printInfo.rightMargin = 72
         printInfo.paperSize = NSSize(width: 612, height: 792)
+        printInfo.jobDisposition = .spool
+        printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = title
 
         let contentWidth = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin
         let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 0))
@@ -469,6 +479,7 @@ struct MenuBarPopover: View {
         let printOp = NSPrintOperation(view: textView, printInfo: printInfo)
         printOp.showsPrintPanel = true
         printOp.showsProgressPanel = true
+        printOp.jobTitle = title
         printOp.run()
     }
 
