@@ -19,6 +19,11 @@
 - [ ] macOS notification when a scheduled briefing is ready
 - [ ] Handle wake-from-sleep (re-trigger if scheduled time was missed)
 
+## iCloud Drive Sync
+- [x] Cache personal calendar events (iCloud, Bendicoot, Planning Board) to iCloud Drive for work Mac
+- [x] Cache Things 3 tasks to iCloud Drive for work Mac fallback
+- [ ] Share generated briefings (today + week) via iCloud Drive so they don't need to be regenerated on each computer
+
 ## Polish
 - [ ] Graceful error handling: calendar denied, Things 3 not running, network errors, missing config path
 - [ ] Visual conflict/free-window indicators in calendar timeline
