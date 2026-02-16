@@ -2,8 +2,8 @@ import Foundation
 
 // The result of a full briefing generation — contains both the
 // Claude-generated analysis and the raw data that fed into it.
-struct BriefingResult: Identifiable {
-    let id = UUID()
+struct BriefingResult: Identifiable, Codable {
+    let id: UUID
     let generatedAt: Date
     let markdownContent: String      // The full briefing text from Claude
     let model: String                // Which Claude model was used
@@ -17,10 +17,37 @@ struct BriefingResult: Identifiable {
     let freeWindowCount: Int
     let taskCount: Int
     let syncDiffCount: Int
+
+    init(
+        generatedAt: Date,
+        markdownContent: String,
+        model: String,
+        promptTokens: Int?,
+        responseTokens: Int?,
+        michaelEventCount: Int,
+        nooshEventCount: Int,
+        conflictCount: Int,
+        freeWindowCount: Int,
+        taskCount: Int,
+        syncDiffCount: Int
+    ) {
+        self.id = UUID()
+        self.generatedAt = generatedAt
+        self.markdownContent = markdownContent
+        self.model = model
+        self.promptTokens = promptTokens
+        self.responseTokens = responseTokens
+        self.michaelEventCount = michaelEventCount
+        self.nooshEventCount = nooshEventCount
+        self.conflictCount = conflictCount
+        self.freeWindowCount = freeWindowCount
+        self.taskCount = taskCount
+        self.syncDiffCount = syncDiffCount
+    }
 }
 
 // Whether to generate a today-only or week-ahead briefing
-enum BriefingScope {
+enum BriefingScope: String, Hashable, Codable {
     case today
     case week
 
@@ -57,5 +84,25 @@ enum BriefingStatus: Equatable {
         case (.error(let a), .error(let b)): return a == b
         default: return false
         }
+    }
+}
+
+// MARK: - Persistent Cache
+
+/// Persists the most recent briefing result per scope to UserDefaults
+/// so cached briefings survive app restarts.
+enum BriefingCache {
+    private static let prefix = "com.ammaturo.Briefing.cache."
+
+    static func save(_ result: BriefingResult, for scope: BriefingScope) {
+        guard let data = try? JSONEncoder().encode(result) else { return }
+        UserDefaults.standard.set(data, forKey: prefix + scope.rawValue)
+    }
+
+    static func load(for scope: BriefingScope) -> BriefingResult? {
+        guard let data = UserDefaults.standard.data(forKey: prefix + scope.rawValue) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(BriefingResult.self, from: data)
     }
 }

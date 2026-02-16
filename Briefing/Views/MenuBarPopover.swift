@@ -19,6 +19,9 @@ struct MenuBarPopover: View {
     @State private var errorMessage: String?
     @State private var now = Date()
     @State private var briefingStatus: BriefingStatus = .idle
+    // Cache generated briefings per scope so repeated clicks don't re-call Claude
+    @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
+    @State private var currentScope: BriefingScope = .today
 
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -63,6 +66,12 @@ struct MenuBarPopover: View {
         }
         .frame(width: 360, height: 520)
         .task {
+            // Restore any cached briefings from disk
+            for scope in [BriefingScope.today, .week] {
+                if let cached = BriefingCache.load(for: scope) {
+                    briefingCache[scope] = cached
+                }
+            }
             await loadAll()
         }
         .onReceive(minuteTimer) { _ in
@@ -295,15 +304,16 @@ struct MenuBarPopover: View {
             switch briefingStatus {
             case .idle:
                 // Two buttons: today's briefing and week's briefing
+                // If a cached result exists, show it; otherwise call Claude
                 let hasKey = KeychainService.load(key: KeychainService.Key.anthropicAPIKey) != nil
                 HStack(spacing: 8) {
-                    Button(action: { generateBriefing(scope: .today) }) {
+                    Button(action: { showOrGenerate(scope: .today) }) {
                         Label("Today's Briefing", systemImage: "sparkles")
                     }
                     .buttonStyle(.bordered)
                     .disabled(!hasKey)
 
-                    Button(action: { generateBriefing(scope: .week) }) {
+                    Button(action: { showOrGenerate(scope: .week) }) {
                         Label("Week's Briefing", systemImage: "sparkles")
                     }
                     .buttonStyle(.bordered)
@@ -359,19 +369,32 @@ struct MenuBarPopover: View {
                             .foregroundStyle(.tertiary)
                     }
 
-                    // Regenerate buttons after a result is shown
+                    // Toggle between cached scopes; Refresh forces a new Claude call
                     HStack(spacing: 8) {
-                        Button(action: { generateBriefing(scope: .today) }) {
-                            Label("Today", systemImage: "arrow.clockwise")
+                        Button(action: { showOrGenerate(scope: .today) }) {
+                            Text("Today")
                                 .font(.caption)
+                                .fontWeight(currentScope == .today ? .semibold : .regular)
+                                .foregroundStyle(currentScope == .today ? .primary : .secondary)
                         }
                         .buttonStyle(.borderless)
 
-                        Button(action: { generateBriefing(scope: .week) }) {
-                            Label("Week", systemImage: "arrow.clockwise")
+                        Button(action: { showOrGenerate(scope: .week) }) {
+                            Text("Week")
+                                .font(.caption)
+                                .fontWeight(currentScope == .week ? .semibold : .regular)
+                                .foregroundStyle(currentScope == .week ? .primary : .secondary)
+                        }
+                        .buttonStyle(.borderless)
+
+                        Spacer()
+
+                        Button(action: { generateBriefing(scope: currentScope) }) {
+                            Image(systemName: "arrow.clockwise")
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
+                        .help("Regenerate with Claude")
                     }
 
                     // Render briefing content inline
@@ -449,14 +472,29 @@ struct MenuBarPopover: View {
         printOp.run()
     }
 
+    /// Show a cached briefing if available, otherwise generate a new one.
+    private func showOrGenerate(scope: BriefingScope) {
+        currentScope = scope
+        if let cached = briefingCache[scope] {
+            briefingStatus = .complete(cached)
+        } else {
+            generateBriefing(scope: scope)
+        }
+    }
+
+    /// Always call Claude to generate a fresh briefing (used by refresh buttons).
     private func generateBriefing(scope: BriefingScope) {
         let engine = briefingEngine
         Task {
             do {
-                _ = try await engine.generateBriefing(scope: scope) { status in
+                let result = try await engine.generateBriefing(scope: scope) { status in
                     Task { @MainActor in
                         briefingStatus = status
                     }
+                }
+                await MainActor.run {
+                    briefingCache[scope] = result
+                    BriefingCache.save(result, for: scope)
                 }
             } catch {
                 await MainActor.run {
