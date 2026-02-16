@@ -19,6 +19,26 @@ struct BriefingResult: Identifiable {
     let syncDiffCount: Int
 }
 
+// Whether to generate a today-only or week-ahead briefing
+enum BriefingScope {
+    case today
+    case week
+
+    var label: String {
+        switch self {
+        case .today: return "Today's Briefing"
+        case .week: return "Week's Briefing"
+        }
+    }
+
+    var calendarHeading: String {
+        switch self {
+        case .today: return "Calendar Events (Today)"
+        case .week: return "Calendar Events (Next 7 Days)"
+        }
+    }
+}
+
 // Status of a briefing generation in progress
 enum BriefingStatus: Equatable {
     case idle

@@ -27,14 +27,16 @@ actor BriefingEngine {
     // MARK: - Generate Briefing
 
     /// Run the full briefing pipeline: gather data → build prompt → call Claude.
+    /// Scope controls whether we fetch today's events or the full week.
     func generateBriefing(
+        scope: BriefingScope = .today,
         onStatusChange: @Sendable (BriefingStatus) -> Void
     ) async throws -> BriefingResult {
 
         onStatusChange(.gatheringData)
 
         // Gather all data in parallel
-        async let calendarData = gatherCalendarData()
+        async let calendarData = gatherCalendarData(scope: scope)
         async let tasksData = gatherTasksData()
         async let fileData = gatherFileData()
 
@@ -46,6 +48,7 @@ actor BriefingEngine {
 
         // Build the prompt from template + data
         let prompt = buildPrompt(
+            scope: scope,
             calendar: calendar,
             tasks: tasks,
             files: files
@@ -85,11 +88,16 @@ actor BriefingEngine {
         let freeWindows: [FreeWindow]
     }
 
-    private func gatherCalendarData() async throws -> CalendarData {
-        // Fetch the full week of events
-        let allEvents = try await calendarService.fetchWeekEvents(
-            daysAhead: settings.calendarDaysAhead
-        )
+    private func gatherCalendarData(scope: BriefingScope) async throws -> CalendarData {
+        let allEvents: [CalendarEvent]
+        switch scope {
+        case .today:
+            allEvents = try await calendarService.fetchTodayEvents()
+        case .week:
+            allEvents = try await calendarService.fetchWeekEvents(
+                daysAhead: settings.calendarDaysAhead
+            )
+        }
         let michael = allEvents.filter { $0.owner == .michael }
         let noosh = allEvents.filter { $0.owner == .noosh }
         let conflicts = await calendarService.detectConflicts(in: allEvents)
@@ -129,6 +137,7 @@ actor BriefingEngine {
     // MARK: - Prompt Assembly
 
     private func buildPrompt(
+        scope: BriefingScope,
         calendar: CalendarData,
         tasks: [BriefingTask],
         files: FileData
@@ -142,6 +151,12 @@ actor BriefingEngine {
             // Fallback if the resource isn't found
             template = fallbackPromptTemplate()
         }
+
+        // Adjust the calendar heading based on scope
+        template = template.replacingOccurrences(
+            of: "## Calendar Events (Next 7 Days)",
+            with: "## \(scope.calendarHeading)"
+        )
 
         // Date
         let dateFormatter = DateFormatter()

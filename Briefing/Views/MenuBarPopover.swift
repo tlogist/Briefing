@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // The compact popover shown when clicking the menu bar icon.
@@ -39,6 +40,8 @@ struct MenuBarPopover: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
+                        briefingSection
+                        Divider()
                         if !conflicts.isEmpty {
                             conflictsSection
                         }
@@ -47,7 +50,6 @@ struct MenuBarPopover: View {
                             freeWindowsSection
                         }
                         tasksSection
-                        briefingSection
                         if !nooshEvents.isEmpty {
                             nooshSection
                         }
@@ -290,23 +292,26 @@ struct MenuBarPopover: View {
 
     private var briefingSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Divider()
-                .padding(.vertical, 4)
-
             switch briefingStatus {
             case .idle:
-                // Show the generate button
-                HStack {
-                    Spacer()
-                    Button(action: { generateBriefing() }) {
-                        Label("Generate Briefing", systemImage: "sparkles")
+                // Two buttons: today's briefing and week's briefing
+                let hasKey = KeychainService.load(key: KeychainService.Key.anthropicAPIKey) != nil
+                HStack(spacing: 8) {
+                    Button(action: { generateBriefing(scope: .today) }) {
+                        Label("Today's Briefing", systemImage: "sparkles")
                     }
                     .buttonStyle(.bordered)
-                    .disabled(KeychainService.load(key: KeychainService.Key.anthropicAPIKey) == nil)
-                    Spacer()
-                }
+                    .disabled(!hasKey)
 
-                if KeychainService.load(key: KeychainService.Key.anthropicAPIKey) == nil {
+                    Button(action: { generateBriefing(scope: .week) }) {
+                        Label("Week's Briefing", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!hasKey)
+                }
+                .frame(maxWidth: .infinity)
+
+                if !hasKey {
                     Text("Set your API key in Settings first")
                         .font(.caption2)
                         .foregroundStyle(.orange)
@@ -340,16 +345,33 @@ struct MenuBarPopover: View {
                     HStack {
                         Label("Briefing", systemImage: "sparkles")
                             .font(.subheadline.weight(.semibold))
+
+                        Button(action: { exportToPDF(result) }) {
+                            Image(systemName: "arrow.down.doc")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Export as PDF")
+
                         Spacer()
                         Text(DateFormatting.time.string(from: result.generatedAt))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
-                        Button(action: { generateBriefing() }) {
-                            Image(systemName: "arrow.clockwise")
+                    }
+
+                    // Regenerate buttons after a result is shown
+                    HStack(spacing: 8) {
+                        Button(action: { generateBriefing(scope: .today) }) {
+                            Label("Today", systemImage: "arrow.clockwise")
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .help("Regenerate")
+
+                        Button(action: { generateBriefing(scope: .week) }) {
+                            Label("Week", systemImage: "arrow.clockwise")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
                     }
 
                     // Render briefing content inline
@@ -365,20 +387,73 @@ struct MenuBarPopover: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
-                    Button("Retry") { generateBriefing() }
-                        .buttonStyle(.borderless)
-                        .font(.caption)
+                    HStack(spacing: 8) {
+                        Button("Retry Today") { generateBriefing(scope: .today) }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                        Button("Retry Week") { generateBriefing(scope: .week) }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
         }
     }
 
-    private func generateBriefing() {
+    /// Export the briefing to PDF via the system print dialog.
+    /// The native dialog includes "Save as PDF" — no custom rendering needed.
+    private func exportToPDF(_ result: BriefingResult) {
+        // Close the popover so the print dialog isn't blocked
+        NSApp.keyWindow?.close()
+
+        // Build an attributed string from the markdown content.
+        // NSAttributedString(markdown:) (macOS 12+) handles basic formatting.
+        let content: NSAttributedString
+        if let attrStr = try? NSAttributedString(
+            markdown: result.markdownContent,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) {
+            // Apply a readable body font — the default from markdown init is tiny
+            let styled = NSMutableAttributedString(attributedString: attrStr)
+            styled.addAttribute(
+                .font,
+                value: NSFont.systemFont(ofSize: 12),
+                range: NSRange(location: 0, length: styled.length)
+            )
+            content = styled
+        } else {
+            content = NSAttributedString(
+                string: result.markdownContent,
+                attributes: [.font: NSFont.systemFont(ofSize: 12)]
+            )
+        }
+
+        // Create a text view sized to US Letter with margins
+        let printInfo = NSPrintInfo()
+        printInfo.topMargin = 72
+        printInfo.bottomMargin = 72
+        printInfo.leftMargin = 72
+        printInfo.rightMargin = 72
+        printInfo.paperSize = NSSize(width: 612, height: 792)
+
+        let contentWidth = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin
+        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 0))
+        textView.isEditable = false
+        textView.textStorage?.setAttributedString(content)
+        textView.sizeToFit()
+
+        let printOp = NSPrintOperation(view: textView, printInfo: printInfo)
+        printOp.showsPrintPanel = true
+        printOp.showsProgressPanel = true
+        printOp.run()
+    }
+
+    private func generateBriefing(scope: BriefingScope) {
         let engine = briefingEngine
         Task {
             do {
-                _ = try await engine.generateBriefing { status in
+                _ = try await engine.generateBriefing(scope: scope) { status in
                     Task { @MainActor in
                         briefingStatus = status
                     }
