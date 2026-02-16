@@ -79,8 +79,10 @@
 - **Detection is EVENT-BASED, not source-based.** Both Macs may have iCloud
   configured in Apple Calendar — the work Mac just has blank iCloud calendars.
   Checking `store.sources` would return true on both. Instead, scan a 14-day
-  window for events with `calendarSource == "iCloud"`. If any exist → write.
-  If zero → read cache.
+  window for events from any personal source. If any exist → write. If zero →
+  read cache.
+- **Personal sources are defined in `CalendarService.personalSources`.** Currently:
+  iCloud, Bendicoot, Planning Board. Add new personal-only sources there.
 - **Cache window is 14 days.** The writer always caches a full 14-day window
   regardless of the requested date range, so the work Mac has enough data for
   both the popover (today) and the week briefing.

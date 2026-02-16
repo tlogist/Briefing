@@ -74,20 +74,26 @@ actor CalendarService {
         return try await fetchEvents(from: start, to: end)
     }
 
-    // MARK: - iCloud Detection & Personal Calendar Cache
+    // MARK: - Personal Calendar Cache
+
+    /// Calendar sources that only exist on the personal Mac. Events from these
+    /// sources get cached to iCloud Drive so the work Mac can display them.
+    /// Add new personal-only sources here as needed.
+    private static let personalSources: Set<String> = [
+        "iCloud",
+        "Bendicoot",
+        "Planning Board"
+    ]
 
     /// Fetch events with transparent personal calendar caching.
     ///
     /// Detection is EVENT-BASED, not source-based. Both Macs may have iCloud
     /// configured in Apple Calendar, but only the personal Mac has actual events
-    /// in its iCloud calendars. We scan a 14-day window for any event with
-    /// `calendarSource == "iCloud"`:
+    /// in personal-only sources (iCloud, Bendicoot, Planning Board). We scan a
+    /// 14-day window for events from any personal source:
     ///
-    ///   - If iCloud events exist → this Mac has active personal calendars → write cache
-    ///   - If no iCloud events   → iCloud calendars are blank → read cache and merge
-    ///
-    /// The 14-day window makes false negatives (personal Mac with zero iCloud
-    /// events for 2 weeks) extremely unlikely in practice.
+    ///   - If personal events exist → write cache
+    ///   - If no personal events    → read cache and merge
     func fetchEventsWithPersonalCache(
         from start: Date,
         to end: Date,
@@ -95,18 +101,20 @@ actor CalendarService {
     ) async throws -> [CalendarEvent] {
         let liveEvents = try await fetchEvents(from: start, to: end)
 
-        // Check the full 14-day window for any iCloud-sourced events.
+        // Check the full 14-day window for events from personal-only sources.
         // This is the reliable signal — store.sources can't distinguish
         // "iCloud configured with events" from "iCloud configured but blank."
         let cal = Calendar.current
         let cacheStart = cal.startOfDay(for: Date())
         let cacheEnd = cal.date(byAdding: .day, value: 14, to: cacheStart)!
         let windowEvents = try await fetchEvents(from: cacheStart, to: cacheEnd)
-        let iCloudEvents = windowEvents.filter { $0.calendarSource == "iCloud" }
+        let personalEvents = windowEvents.filter {
+            Self.personalSources.contains($0.calendarSource)
+        }
 
-        if !iCloudEvents.isEmpty {
+        if !personalEvents.isEmpty {
             // This Mac has active personal calendars — write cache
-            CalendarCache.save(events: iCloudEvents, to: cacheDirectoryPath)
+            CalendarCache.save(events: personalEvents, to: cacheDirectoryPath)
             lastPersonalCalCacheDate = nil
             return liveEvents
         } else {
