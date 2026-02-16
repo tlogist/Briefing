@@ -101,7 +101,7 @@ struct MenuBarPopover: View {
                 HStack(spacing: 6) {
                     Text("\(DateFormatting.dateReadable.string(from: now))  \(DateFormatting.time.string(from: now))")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.orange)
                     if isRefreshing {
                         ProgressView()
                             .scaleEffect(0.4)
@@ -114,12 +114,12 @@ struct MenuBarPopover: View {
                     if let cachedAt = personalCalCachedAt {
                         Text("· Personal cal: cached \(relativeTime(since: cachedAt))")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.tertiary)
                     }
                     if let cachedAt = thingsCachedAt {
                         Text("· Tasks: cached \(relativeTime(since: cachedAt))")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
