@@ -23,6 +23,12 @@ struct MenuBarPopover: View {
     @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
     @State private var currentScope: BriefingScope = .today
 
+    // Chat with Claude — lets the user ask questions or manage tasks
+    @State private var chatInput = ""
+    @State private var chatMessages: [ChatDisplayMessage] = []
+    @State private var chatHistory: [[String: Any]] = []
+    @State private var isChatting = false
+
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -56,12 +62,14 @@ struct MenuBarPopover: View {
                         if !nooshEvents.isEmpty {
                             nooshSection
                         }
+                        if !chatMessages.isEmpty {
+                            chatSection
+                        }
                     }
                     .padding(12)
                 }
             }
 
-            Divider()
             footer
         }
         .frame(width: 360, height: 520)
@@ -101,30 +109,45 @@ struct MenuBarPopover: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button(action: { NSApplication.shared.terminate(nil) }) {
-                Text("Quit")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.borderless)
+        VStack(spacing: 0) {
+            Divider()
 
-            Spacer()
+            HStack(spacing: 8) {
+                Button(action: { NSApplication.shared.terminate(nil) }) {
+                    Text("Quit")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
 
-            Button(action: {
-                // Close the popover, then show Settings as a floating panel.
-                // Using a custom NSPanel avoids activating the app, which would
-                // blank the system menu bar (LSUIElement has no main menu).
-                NSApp.keyWindow?.close()
-                SettingsWindowController.shared.show(settings: settings)
-            }) {
-                Label("Settings", systemImage: "gear")
-                    .font(.caption)
+                // Claude chat input — expands vertically as text wraps
+                HStack(spacing: 4) {
+                    TextField("Ask Claude...", text: $chatInput, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                        .lineLimit(1...5)
+                        .onSubmit { sendChatMessage() }
+                        .disabled(isChatting)
+
+                    if isChatting {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                            .frame(width: 16, height: 16)
+                    }
+                }
+
+                Button(action: {
+                    NSApp.keyWindow?.close()
+                    SettingsWindowController.shared.show(settings: settings)
+                }) {
+                    Image(systemName: "gear")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     private var loadingView: some View {
@@ -527,6 +550,218 @@ struct MenuBarPopover: View {
         }
     }
 
+    // MARK: - Chat
+
+    private var chatSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            ForEach(chatMessages) { message in
+                ChatBubble(message: message)
+            }
+        }
+    }
+
+    private func sendChatMessage() {
+        let input = chatInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+
+        chatInput = ""
+        chatMessages.append(ChatDisplayMessage(role: .user, content: input))
+        chatHistory.append(["role": "user", "content": input])
+        isChatting = true
+
+        let service = ClaudeAPIService()
+        let things = thingsService
+        let system = buildChatSystemPrompt()
+        let tools = Self.chatTools
+        var history = chatHistory
+
+        Task {
+            do {
+                var allText: [String] = []
+
+                // Tool-use loop: Claude may request tool calls, which we execute
+                // and send back until it produces a final text response.
+                while true {
+                    let response = try await service.sendChat(
+                        messages: history,
+                        system: system,
+                        model: settings.claudeModel,
+                        maxTokens: 1024,
+                        tools: tools
+                    )
+
+                    // Accumulate any text Claude produced alongside tool calls
+                    if !response.textContent.isEmpty {
+                        allText.append(response.textContent)
+                    }
+
+                    // Add the assistant's full response to history (includes tool_use blocks)
+                    history.append(["role": "assistant", "content": response.contentBlocks])
+
+                    if response.stopReason == "tool_use" && !response.toolUses.isEmpty {
+                        // Execute each tool and collect results
+                        var toolResults: [[String: Any]] = []
+                        for toolUse in response.toolUses {
+                            let result = await Self.executeTool(
+                                name: toolUse.name,
+                                input: toolUse.input,
+                                thingsService: things
+                            )
+                            toolResults.append([
+                                "type": "tool_result",
+                                "tool_use_id": toolUse.id,
+                                "content": result
+                            ])
+                        }
+                        history.append(["role": "user", "content": toolResults])
+                        continue
+                    }
+
+                    // No more tool calls — we're done
+                    break
+                }
+
+                let finalText = allText.joined(separator: "\n\n")
+                await MainActor.run {
+                    chatHistory = history
+                    if !finalText.isEmpty {
+                        chatMessages.append(ChatDisplayMessage(role: .assistant, content: finalText))
+                    }
+                    isChatting = false
+                    // Refresh tasks in case Claude modified them
+                    Task { await loadTasks() }
+                }
+            } catch {
+                await MainActor.run {
+                    chatHistory = history
+                    chatMessages.append(ChatDisplayMessage(
+                        role: .assistant,
+                        content: "Error: \(error.localizedDescription)"
+                    ))
+                    isChatting = false
+                }
+            }
+        }
+    }
+
+    private func buildChatSystemPrompt() -> String {
+        var parts: [String] = [
+            "You are a concise task management assistant for Michael Ammaturo.",
+            "Today is \(DateFormatting.dateReadable.string(from: Date())).",
+            "Keep responses brief. Use tools when asked to add or complete tasks."
+        ]
+
+        if !michaelEvents.isEmpty {
+            let lines = michaelEvents.map { event -> String in
+                if event.isAllDay {
+                    return "- ALL DAY: \(event.title)"
+                }
+                let start = DateFormatting.time.string(from: event.startDate)
+                let end = DateFormatting.time.string(from: event.endDate)
+                return "- \(start)–\(end): \(event.title)"
+            }
+            parts.append("\nToday's calendar:\n" + lines.joined(separator: "\n"))
+        }
+
+        if !todayTasks.isEmpty {
+            let lines = todayTasks.map {
+                "- \($0.name)" + ($0.project.map { " (\($0))" } ?? "")
+            }
+            parts.append("\nToday's tasks:\n" + lines.joined(separator: "\n"))
+        }
+
+        return parts.joined(separator: "\n")
+    }
+
+    /// Tool definitions for the Claude chat — add and complete tasks in Things 3.
+    static let chatTools: [[String: Any]] = [
+        [
+            "name": "add_task",
+            "description": "Add a new task to Things 3.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "title": [
+                        "type": "string",
+                        "description": "Task title"
+                    ] as [String: Any],
+                    "notes": [
+                        "type": "string",
+                        "description": "Optional notes"
+                    ] as [String: Any],
+                    "list": [
+                        "type": "string",
+                        "enum": ["inbox", "today", "anytime", "someday"],
+                        "description": "List to add to (defaults to today)"
+                    ] as [String: Any]
+                ] as [String: Any],
+                "required": ["title"]
+            ] as [String: Any]
+        ] as [String: Any],
+        [
+            "name": "complete_task",
+            "description": "Mark a task as complete in Things 3 by name.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "task_name": [
+                        "type": "string",
+                        "description": "The name of the task to complete"
+                    ] as [String: Any]
+                ] as [String: Any],
+                "required": ["task_name"]
+            ] as [String: Any]
+        ] as [String: Any]
+    ]
+
+    /// Execute a tool call from Claude and return the result string.
+    static func executeTool(
+        name: String,
+        input: [String: Any],
+        thingsService: ThingsService
+    ) async -> String {
+        switch name {
+        case "add_task":
+            let title = input["title"] as? String ?? ""
+            let notes = input["notes"] as? String
+            let listStr = input["list"] as? String ?? "today"
+            let list: TaskList
+            switch listStr.lowercased() {
+            case "inbox": list = .inbox
+            case "today": list = .today
+            case "anytime": list = .anytime
+            case "someday": list = .someday
+            default: list = .today
+            }
+            do {
+                try await thingsService.createTask(title: title, notes: notes, list: list)
+                return "Task '\(title)' added to \(listStr) list."
+            } catch {
+                return "Error adding task: \(error.localizedDescription)"
+            }
+
+        case "complete_task":
+            let taskName = input["task_name"] as? String ?? ""
+            do {
+                let allTasks = try await thingsService.fetchAllTasks()
+                // Case-insensitive name match
+                guard let task = allTasks.first(where: {
+                    $0.name.lowercased() == taskName.lowercased()
+                }) else {
+                    return "Could not find task named '\(taskName)'"
+                }
+                try await thingsService.completeTask(id: task.id)
+                return "Task '\(task.name)' marked as complete."
+            } catch {
+                return "Error completing task: \(error.localizedDescription)"
+            }
+
+        default:
+            return "Unknown tool: \(name)"
+        }
+    }
+
     // MARK: - Data Loading
 
     private func loadAll() async {
@@ -659,6 +894,46 @@ struct EventRow: View {
         }
         .foregroundStyle(isPast ? .secondary : .primary)
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Chat Components
+
+struct ChatDisplayMessage: Identifiable {
+    let id = UUID()
+    let role: Role
+    let content: String
+
+    enum Role { case user, assistant }
+}
+
+struct ChatBubble: View {
+    let message: ChatDisplayMessage
+
+    var body: some View {
+        HStack {
+            if message.role == .user { Spacer(minLength: 40) }
+
+            Group {
+                if message.role == .assistant {
+                    // Render markdown in assistant responses
+                    Text(LocalizedStringKey(message.content))
+                } else {
+                    Text(message.content)
+                }
+            }
+            .font(.caption)
+            .padding(8)
+            .background(
+                message.role == .user
+                    ? Color.blue.opacity(0.15)
+                    : Color.secondary.opacity(0.1)
+            )
+            .cornerRadius(8)
+            .textSelection(.enabled)
+
+            if message.role == .assistant { Spacer(minLength: 40) }
+        }
     }
 }
 
