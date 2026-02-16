@@ -6,4 +6,21 @@
 
 ## UI / Window Management
 - [x] Settings window: now uses NSPanel floating window (no app activation, no menu bar blanking)
+- [ ] Full briefing window (separate from popover) with toolbar (Print, Refresh)
+- [ ] "Open Full Briefing" button in popover that opens the full window
+- [ ] First-run onboarding flow (pick task directory, grant calendar access, enter API key)
+
+## Authentication
 - [ ] Switch from UserDefaults to real Keychain for API key storage once app is properly code-signed for distribution
+- [ ] OAuth support (experimental): PKCE flow for "Sign in with Claude" as alternative to API key
+
+## Scheduling & Notifications
+- [ ] Timer-based auto-run: generate briefing on a configurable schedule
+- [ ] macOS notification when a scheduled briefing is ready
+- [ ] Handle wake-from-sleep (re-trigger if scheduled time was missed)
+
+## Polish
+- [ ] Graceful error handling: calendar denied, Things 3 not running, network errors, missing config path
+- [ ] Visual conflict/free-window indicators in calendar timeline
+- [ ] Noosh's schedule as a clearly separated section
+- [ ] Test on second Mac (same iCloud Drive path, verify same briefing)
