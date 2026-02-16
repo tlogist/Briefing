@@ -15,6 +15,10 @@ struct MenuBarPopover: View {
     @State private var thingsStatus: ThingsStatus = .unknown
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var now = Date()
+
+    // Tick every 60 seconds so past-event greying stays current
+    private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     // Track whether Things 3 is available separately from calendar errors
     enum ThingsStatus {
@@ -56,6 +60,9 @@ struct MenuBarPopover: View {
         .task {
             await loadAll()
         }
+        .onReceive(minuteTimer) { _ in
+            now = Date()
+        }
     }
 
     // MARK: - Subviews
@@ -65,7 +72,7 @@ struct MenuBarPopover: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Briefing")
                     .font(.headline)
-                Text(DateFormatting.dateReadable.string(from: Date()))
+                Text("\(DateFormatting.dateReadable.string(from: now))  \(DateFormatting.time.string(from: now))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -165,7 +172,7 @@ struct MenuBarPopover: View {
                     .padding(.vertical, 4)
             } else {
                 ForEach(michaelEvents) { event in
-                    EventRow(event: event)
+                    EventRow(event: event, now: now)
                 }
             }
         }
@@ -248,7 +255,7 @@ struct MenuBarPopover: View {
                 .foregroundStyle(.purple)
 
             ForEach(nooshEvents) { event in
-                EventRow(event: event)
+                EventRow(event: event, now: now)
             }
         }
     }
@@ -306,6 +313,12 @@ struct MenuBarPopover: View {
 
 struct EventRow: View {
     let event: CalendarEvent
+    let now: Date
+
+    // An event is past once its end time has passed (all-day events are never greyed out)
+    private var isPast: Bool {
+        !event.isAllDay && event.endDate < now
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -329,6 +342,7 @@ struct EventRow: View {
                 Text(event.title)
                     .font(.caption)
                     .lineLimit(2)
+                    .strikethrough(isPast)
 
                 if let location = event.location, !location.isEmpty {
                     Label(location, systemImage: "mappin")
@@ -344,6 +358,7 @@ struct EventRow: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
+        .foregroundStyle(isPast ? .secondary : .primary)
         .padding(.vertical, 2)
     }
 }

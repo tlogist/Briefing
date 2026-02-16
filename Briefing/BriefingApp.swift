@@ -10,6 +10,15 @@ struct BriefingApp: App {
     @State private var calendarService = CalendarService()
     @State private var thingsService = ThingsService()
 
+    // Request calendar permission at launch so the system dialog appears
+    // before the popover — avoids the popover blocking the permission alert.
+    init() {
+        let service = calendarService
+        Task {
+            try? await service.requestAccess()
+        }
+    }
+
     var body: some Scene {
         // Menu bar icon + popover. The .window style gives us a proper
         // floating panel instead of a cramped NSMenu.
