@@ -16,8 +16,10 @@ struct MenuBarPopover: View {
     @State private var todayTasks: [BriefingTask] = []
     @State private var thingsStatus: ThingsStatus = .unknown
     @State private var isLoading = false
+    @State private var isRefreshing = false
     @State private var errorMessage: String?
     @State private var now = Date()
+    @State private var lastRefreshed: Date?
     @State private var briefingStatus: BriefingStatus = .idle
     // Cache generated briefings per scope so repeated clicks don't re-call Claude
     @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
@@ -94,16 +96,27 @@ struct MenuBarPopover: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Briefing")
                     .font(.headline)
-                Text("\(DateFormatting.dateReadable.string(from: now))  \(DateFormatting.time.string(from: now))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text("\(DateFormatting.dateReadable.string(from: now))  \(DateFormatting.time.string(from: now))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if isRefreshing {
+                        ProgressView()
+                            .scaleEffect(0.4)
+                            .frame(width: 10, height: 10)
+                    } else if let refreshed = lastRefreshed {
+                        Text("· \(relativeTime(since: refreshed))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
             Spacer()
             Button(action: { Task { await loadAll() } }) {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .help("Refresh")
+            .help("Refresh calendars and tasks")
         }
         .padding(12)
     }
@@ -762,6 +775,16 @@ struct MenuBarPopover: View {
         }
     }
 
+    /// Human-readable relative time: "just now", "2m ago", "1h ago"
+    private func relativeTime(since date: Date) -> String {
+        let seconds = Int(now.timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m ago" }
+        let hours = minutes / 60
+        return "\(hours)h ago"
+    }
+
     // MARK: - Data Loading
 
     /// Load cached data instantly (no spinner), then refresh from live sources
@@ -779,10 +802,11 @@ struct MenuBarPopover: View {
             todayTasks: &todayTasks
         )
 
-        // Only show spinner if there's nothing cached to display
+        // Only show the full spinner if there's nothing cached to display
         if !hasCachedData {
             isLoading = true
         }
+        isRefreshing = true
 
         // Refresh from live sources in the background
         async let calendarResult: () = loadCalendar()
@@ -792,6 +816,8 @@ struct MenuBarPopover: View {
         await tasksResult
 
         isLoading = false
+        isRefreshing = false
+        lastRefreshed = Date()
 
         // Persist the fresh data for next time
         PopoverDataCache.save(
