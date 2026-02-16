@@ -9,7 +9,51 @@
 
 ---
 
-## Status: Phase 2 Complete — Things 3 integration working
+## Status: Phase 3 Complete — Task file I/O + sync engine working
+
+---
+
+### Phase 3 Completed (2026-02-15)
+- [x] MarkdownParser — parse todo.md into structured TodoDocument
+- [x] MarkdownWriter — serialize back with round-trip fidelity for unmodified sections
+- [x] TaskFileService — read/write todo.md and todo-log.md with NSFileCoordinator
+- [x] TaskDiff model — DiffAction enum (addToFile, addToThings, markCompleted, updateInfo, flagStale)
+- [x] TaskSyncService — compare Things 3 vs todo.md, generate diffs, apply approved changes
+- [x] SyncDiffView — approval UI with grouped diffs, select/deselect all, apply/cancel
+- [x] 19 new parser/writer tests + 5 existing calendar tests = 24 total, all passing
+- [x] Build succeeds
+
+### Key implementation details
+
+- **Parser model hierarchy:** `TodoDocument` → `TodoSection` → `TodoProject` → `TodoTask`.
+  Each level preserves raw lines for round-trip fidelity. Sections have `isModified` flag;
+  unmodified sections write back their `rawLines` verbatim.
+- **Section detection by emoji prefix.** SectionType enum (🔴/📋/🟠/🟡/🔵/✅) matches
+  against `## ` heading lines. Works even if heading text changes (e.g., "Anytime (Unassigned)").
+- **Project sub-headings (`### `) only in Projects and Someday.** Tasks after a `###` heading
+  belong to that project until the next `###` or section end — even across blank lines.
+- **Metadata extraction:** Trailing `*(...)* ` patterns are split from task name. Handles
+  nested markdown links, em-dashes, and parenthetical content inside metadata.
+- **NSFileCoordinator for iCloud Drive safety.** Both reads and writes go through
+  `coordinate(readingItemAt:)` / `coordinate(writingItemAt:)` to avoid reading half-synced files.
+- **Fuzzy name matching for sync.** `normalizeForComparison()` strips markdown links,
+  collapses whitespace, and lowercases — so "Schedule w/ [Ray Hair](url)" matches
+  "Schedule w/ Ray Hair" from Things 3.
+- **Diff actions map to concrete operations.** `addToFile` inserts into the appropriate
+  section, `addToThings` uses URL scheme via ThingsService, `markCompleted` moves to the
+  ✅ section with completion date and project attribution.
+
+### Files created
+
+| File | Purpose |
+|------|---------|
+| `Briefing/Utilities/MarkdownParser.swift` | Parse todo.md → TodoDocument with sections/projects/tasks |
+| `Briefing/Utilities/MarkdownWriter.swift` | Serialize TodoDocument → markdown, timestamp updates, task completion |
+| `Briefing/Services/TaskFileService.swift` | iCloud Drive I/O with NSFileCoordinator |
+| `Briefing/Models/TaskDiff.swift` | DiffAction enum, TaskDiff struct, SyncResult |
+| `Briefing/Services/TaskSyncService.swift` | Diff generation + application (Things 3 ↔ todo.md) |
+| `Briefing/Views/SyncDiffView.swift` | Approval UI for sync changes |
+| `BriefingTests/MarkdownParserTests.swift` | 19 tests: parsing, metadata, projects, round-trip, writer |
 
 ---
 
@@ -128,8 +172,9 @@ open ~/Library/Developer/Xcode/DerivedData/Briefing-gaslbouinicyljglrpcyijaecsgq
 ---
 
 ### Next
-- [ ] Phase 2: Things 3 integration
-- [ ] Phase 3: Task file I/O + sync
+- [x] Phase 1: Skeleton + Calendar
+- [x] Phase 2: Things 3 integration
+- [x] Phase 3: Task file I/O + sync
 - [ ] Phase 4: Claude API + briefing generation
 - [ ] Phase 5: Full window + PDF export
 - [ ] Phase 6: Scheduling + notifications
