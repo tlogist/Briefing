@@ -9,7 +9,58 @@
 
 ---
 
-## Status: Phase 3 Complete — Task file I/O + sync engine working
+## Status: Phase 4 Complete — Claude API + briefing generation working
+
+---
+
+### Phase 4 Completed (2026-02-15)
+- [x] KeychainService — store/retrieve API key from macOS Keychain (Security framework)
+- [x] AuthProvider protocol + APIKeyAuth implementation (x-api-key header)
+- [x] ClaudeAPIService — HTTP client for Anthropic Messages API (URLSession, 120s timeout)
+- [x] BriefingPrompt.txt — template with {{DATE}}, {{MICHAEL_EVENTS}}, {{NOOSH_EVENTS}}, {{CONFLICTS}}, {{FREE_WINDOWS}}, {{TODO_MD}}, {{SYNC_DIFF}}, {{RECENT_LOG}} placeholders
+- [x] BriefingEngine actor — parallel data gathering, prompt assembly, Claude API call
+- [x] BriefingResult model with generation metadata (timestamp, model, token counts, source data counts)
+- [x] BriefingStatus enum (idle, gatheringData, callingClaude, complete, error)
+- [x] BriefingContentView — renders markdown briefing with generation metadata
+- [x] BriefingStatusView — shows appropriate UI for each status state
+- [x] SettingsView — API key secure field with Keychain save/remove, model picker, task directory, calendar settings
+- [x] "Generate Briefing" button in popover with status indicators
+- [x] All 24 tests pass, build succeeds
+
+### Key implementation details
+
+- **AuthProvider protocol** decouples the API client from auth mechanism. `APIKeyAuth` reads
+  from Keychain and sets `x-api-key` header. Future `OAuthAuth` will set `Authorization: Bearer`.
+- **Keychain storage** uses `kSecClassGenericPassword` with service name `com.ammaturo.Briefing`.
+  Keys are stored with `kSecAttrAccessibleWhenUnlocked`. Save does delete+add (no upsert API).
+- **BriefingEngine is an actor** that gathers calendar, Things 3, and file data in parallel
+  via `async let`, then assembles the prompt from the template and calls Claude. Things 3
+  failure (not running) is non-fatal — the briefing still works with calendar + file data.
+- **Prompt template loaded from Bundle.** Falls back to a hardcoded minimal template if the
+  resource file isn't found. Events are grouped by day with formatted time ranges.
+- **Status callback pattern** lets the popover update its UI as the engine progresses through
+  stages (gathering → calling Claude → complete/error) without polling.
+- **Settings uses SecureField** for API key input. Key is saved to Keychain on submit, then
+  cleared from the text field. A "Remove" button deletes from Keychain.
+- **Model picker** defaults to Sonnet 4.5 (~$0.06/briefing). Haiku and Opus also available.
+
+### Files created
+
+| File | Purpose |
+|------|---------|
+| `Briefing/Services/KeychainService.swift` | Keychain CRUD for credentials |
+| `Briefing/Services/ClaudeAPIService.swift` | AuthProvider protocol + HTTP client for Messages API |
+| `Briefing/Services/BriefingEngine.swift` | Actor: parallel data gathering + prompt + Claude call |
+| `Briefing/Models/Briefing.swift` | BriefingResult, BriefingStatus |
+| `Briefing/Views/BriefingContentView.swift` | Markdown rendering + status views |
+| `Briefing/Resources/BriefingPrompt.txt` | Prompt template with placeholders |
+
+### Files modified
+
+| File | Change |
+|------|--------|
+| `Briefing/BriefingApp.swift` | Replaced SettingsPlaceholderView with full SettingsView, added BriefingEngine creation |
+| `Briefing/Views/MenuBarPopover.swift` | Added briefingEngine prop, briefingSection with generate button and status UI |
 
 ---
 
@@ -175,7 +226,7 @@ open ~/Library/Developer/Xcode/DerivedData/Briefing-gaslbouinicyljglrpcyijaecsgq
 - [x] Phase 1: Skeleton + Calendar
 - [x] Phase 2: Things 3 integration
 - [x] Phase 3: Task file I/O + sync
-- [ ] Phase 4: Claude API + briefing generation
+- [x] Phase 4: Claude API + briefing generation
 - [ ] Phase 5: Full window + PDF export
 - [ ] Phase 6: Scheduling + notifications
 - [ ] Phase 7: Polish

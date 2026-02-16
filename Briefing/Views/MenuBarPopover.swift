@@ -6,6 +6,7 @@ struct MenuBarPopover: View {
     let calendarService: CalendarService
     let thingsService: ThingsService
     let settings: AppSettings
+    let briefingEngine: BriefingEngine
 
     @State private var michaelEvents: [CalendarEvent] = []
     @State private var nooshEvents: [CalendarEvent] = []
@@ -16,6 +17,7 @@ struct MenuBarPopover: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var now = Date()
+    @State private var briefingStatus: BriefingStatus = .idle
 
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -45,6 +47,7 @@ struct MenuBarPopover: View {
                             freeWindowsSection
                         }
                         tasksSection
+                        briefingSection
                         if !nooshEvents.isEmpty {
                             nooshSection
                         }
@@ -243,6 +246,109 @@ struct MenuBarPopover: View {
                     ForEach(todayTasks) { task in
                         TaskRow(task: task)
                     }
+                }
+            }
+        }
+    }
+
+    private var briefingSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+                .padding(.vertical, 4)
+
+            switch briefingStatus {
+            case .idle:
+                // Show the generate button
+                HStack {
+                    Spacer()
+                    Button(action: { generateBriefing() }) {
+                        Label("Generate Briefing", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(KeychainService.load(key: KeychainService.Key.anthropicAPIKey) == nil)
+                    Spacer()
+                }
+
+                if KeychainService.load(key: KeychainService.Key.anthropicAPIKey) == nil {
+                    Text("Set your API key in Settings first")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity)
+                }
+
+            case .gatheringData:
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Gathering data...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+            case .callingClaude:
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Claude is analyzing...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+            case .complete(let result):
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Label("Briefing", systemImage: "sparkles")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(DateFormatting.time.string(from: result.generatedAt))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Button(action: { generateBriefing() }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Regenerate")
+                    }
+
+                    // Render briefing content inline
+                    Text(LocalizedStringKey(result.markdownContent))
+                        .font(.caption)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+            case .error(let message):
+                VStack(spacing: 4) {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                    Button("Retry") { generateBriefing() }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func generateBriefing() {
+        let engine = briefingEngine
+        Task {
+            do {
+                _ = try await engine.generateBriefing { status in
+                    Task { @MainActor in
+                        briefingStatus = status
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    briefingStatus = .error(error.localizedDescription)
                 }
             }
         }

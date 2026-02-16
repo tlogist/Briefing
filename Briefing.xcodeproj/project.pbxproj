@@ -16,13 +16,19 @@
 		501A7C32936B402AD913C2D1 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968965E2AB961B193125B5C2 /* DateFormatting.swift */; };
 		51989AB8515F6AF6E7CBB6D1 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A72157FFC01B6930B02490 /* MarkdownParser.swift */; };
 		5A0F59DF7276F6DB027EFA56 /* SyncDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250DD164117B3DD3C3A24179 /* SyncDiffView.swift */; };
+		5AE1A59B6502A608E8967D64 /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B95A1077CE94BBC92D45413 /* ClaudeAPIService.swift */; };
 		5B5B77A00F8B02A2B94BA38B /* CalendarEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */; };
+		6B93B7126E3D239BCF1BFB04 /* BriefingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42FFFFF78DB3AACAF51E76E1 /* BriefingEngine.swift */; };
+		778851854281207C3267C6CB /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4B025A317DAC4276D4FA125 /* KeychainService.swift */; };
 		7D1BBD1066F9EE3B988FD60B /* CalendarServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1176F9D5A3F28178A26B6FE5 /* CalendarServiceTests.swift */; };
+		96C6285BC0911E7ACEB49CBB /* BriefingPrompt.txt in Resources */ = {isa = PBXBuildFile; fileRef = 0329C0413D569FE0294DA381 /* BriefingPrompt.txt */; };
 		98F42AB9CE30D06A44FCE43B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F051F302F899E29E8367576F /* CalendarService.swift */; };
 		A4548E35ED23772533EBBBC8 /* MenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */; };
 		A6677AB4225B44ADC04BB68A /* BriefingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FC78678B387CCB4A3D66AD /* BriefingApp.swift */; };
 		A9024B9530FDF09B990879A7 /* TaskSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5249CCABFE2FA3C517FF4BD2 /* TaskSyncService.swift */; };
 		BDD75C6D64282978F0D6F6E5 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2A3FC7B4630BE48AB12FFC /* Task.swift */; };
+		E25ED1141C8A4B6A6D7D1E5B /* BriefingContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */; };
+		EEF8498A83D5C25E5DCAB48D /* Briefing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D284A0459B22196D0804EC26 /* Briefing.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +42,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0329C0413D569FE0294DA381 /* BriefingPrompt.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = BriefingPrompt.txt; sourceTree = "<group>"; };
 		03A70B3D725489E538497A79 /* MarkdownParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParserTests.swift; sourceTree = "<group>"; };
 		0955CAD26254F75510EBB609 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		0E3D4E1395B58FE0FF53B1C0 /* Briefing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Briefing.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -44,14 +51,19 @@
 		2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEvent.swift; sourceTree = "<group>"; };
 		2EE22AF1B2631A181C782E14 /* TaskDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDiff.swift; sourceTree = "<group>"; };
 		3C72B38FEEF943366D53BFFC /* BriefingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BriefingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		42FFFFF78DB3AACAF51E76E1 /* BriefingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingEngine.swift; sourceTree = "<group>"; };
 		433BFBD44F838FE7B414FEE2 /* Briefing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Briefing.entitlements; sourceTree = "<group>"; };
 		4B2A3FC7B4630BE48AB12FFC /* Task.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
 		51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
 		5249CCABFE2FA3C517FF4BD2 /* TaskSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSyncService.swift; sourceTree = "<group>"; };
+		5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingContentView.swift; sourceTree = "<group>"; };
 		76A72157FFC01B6930B02490 /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		968965E2AB961B193125B5C2 /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
+		9B95A1077CE94BBC92D45413 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		A2E7D75E9527FFBC2859D93B /* ThingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThingsService.swift; sourceTree = "<group>"; };
 		C7C702D65C5ADE3E82C1C4CF /* MarkdownWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownWriter.swift; sourceTree = "<group>"; };
+		D284A0459B22196D0804EC26 /* Briefing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Briefing.swift; sourceTree = "<group>"; };
+		D4B025A317DAC4276D4FA125 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		D7FC78678B387CCB4A3D66AD /* BriefingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingApp.swift; sourceTree = "<group>"; };
 		E45F120A37991048D03B1250 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		EEFC93E1FA69596B58924B4F /* TaskFileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskFileService.swift; sourceTree = "<group>"; };
@@ -71,7 +83,10 @@
 		09A59214679DA27CCD6652A0 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				42FFFFF78DB3AACAF51E76E1 /* BriefingEngine.swift */,
 				F051F302F899E29E8367576F /* CalendarService.swift */,
+				9B95A1077CE94BBC92D45413 /* ClaudeAPIService.swift */,
+				D4B025A317DAC4276D4FA125 /* KeychainService.swift */,
 				EEFC93E1FA69596B58924B4F /* TaskFileService.swift */,
 				5249CCABFE2FA3C517FF4BD2 /* TaskSyncService.swift */,
 				A2E7D75E9527FFBC2859D93B /* ThingsService.swift */,
@@ -104,6 +119,7 @@
 		2D05712FF69711D95E88C872 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */,
 				51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */,
 				250DD164117B3DD3C3A24179 /* SyncDiffView.swift */,
 				1A723769CDDCEB2F183390EE /* Components */,
@@ -123,6 +139,7 @@
 		B23BE77C32E01D846361C52F /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				0329C0413D569FE0294DA381 /* BriefingPrompt.txt */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -150,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				0955CAD26254F75510EBB609 /* AppSettings.swift */,
+				D284A0459B22196D0804EC26 /* Briefing.swift */,
 				2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */,
 				4B2A3FC7B4630BE48AB12FFC /* Task.swift */,
 				2EE22AF1B2631A181C782E14 /* TaskDiff.swift */,
@@ -165,6 +183,7 @@
 			buildConfigurationList = C24C4BAF2C8570A11C96EF4A /* Build configuration list for PBXNativeTarget "Briefing" */;
 			buildPhases = (
 				A3B0799CC56E36290D8C1753 /* Sources */,
+				C671C2A644750AD66B5D0606 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -232,6 +251,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		C671C2A644750AD66B5D0606 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				96C6285BC0911E7ACEB49CBB /* BriefingPrompt.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		3FC5379EE3F99410C6B76C88 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -247,10 +277,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BC831826948D203D28B00B1 /* AppSettings.swift in Sources */,
+				EEF8498A83D5C25E5DCAB48D /* Briefing.swift in Sources */,
 				A6677AB4225B44ADC04BB68A /* BriefingApp.swift in Sources */,
+				E25ED1141C8A4B6A6D7D1E5B /* BriefingContentView.swift in Sources */,
+				6B93B7126E3D239BCF1BFB04 /* BriefingEngine.swift in Sources */,
 				5B5B77A00F8B02A2B94BA38B /* CalendarEvent.swift in Sources */,
 				98F42AB9CE30D06A44FCE43B /* CalendarService.swift in Sources */,
+				5AE1A59B6502A608E8967D64 /* ClaudeAPIService.swift in Sources */,
 				501A7C32936B402AD913C2D1 /* DateFormatting.swift in Sources */,
+				778851854281207C3267C6CB /* KeychainService.swift in Sources */,
 				51989AB8515F6AF6E7CBB6D1 /* MarkdownParser.swift in Sources */,
 				2940E4BF8F26359BA55AE42C /* MarkdownWriter.swift in Sources */,
 				A4548E35ED23772533EBBBC8 /* MenuBarPopover.swift in Sources */,
