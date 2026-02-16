@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Read events from all calendars via EventKit -->
+    <key>com.apple.security.personal-information.calendars</key>
+    <true/>
+
+    <!-- Send Apple Events to Things 3 for task sync -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Store API keys in Keychain -->
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(AppIdentifierPrefix)com.ammaturo.Briefing</string>
+    </array>
+
+    <!-- Call Claude API over HTTPS -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,454 @@
+# Briefing.app — Development Progress
+
+> Native macOS menu bar app that generates daily/weekly briefings from calendar events,
+> Things 3 tasks, and todo.md files, using Claude for AI analysis.
+
+**Project location:** `/Users/maa/Developer/Briefing/`
+**Task system source:** `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/`
+**Started:** 2026-02-15
+
+---
+
+## Status: Phase 2 Complete — Things 3 integration working
+
+---
+
+### Phase 2 Completed (2026-02-15)
+- [x] BriefingTask model — id, name, project, list, dueDate, notes, tags, isCompleted, source
+- [x] TaskList enum mapping to Things 3 lists (Inbox, Today, Upcoming, Anytime, Someday)
+- [x] TaskSource enum (things3, todoFile, both) for sync diffing later
+- [x] ThingsService (actor) — full JXA integration via osascript
+- [x] Fetch all tasks from all lists + projects in a single JXA call
+- [x] Ghost task filtering (empty names)
+- [x] 5-second timeout via DispatchSource timer on Process
+- [x] Complete task via JXA (`t.status = "completed"`)
+- [x] Create task via URL scheme (`things:///add?title=...&list=...`)
+- [x] Graceful handling: Things 3 not running, timeout, script errors
+- [x] MenuBarPopover updated with "Today's Tasks" section
+- [x] TaskRow component with overdue indicator and project name
+- [x] Calendar and tasks load in parallel (async let)
+- [x] ThingsStatus enum for distinct UI states (available, notRunning, error)
+- [x] All 5 existing tests still pass
+- [x] Build succeeds
+
+### Key implementation details
+
+- **Single JXA call for all data.** Rather than one osascript invocation per list
+  (expensive — each one spawns a process and launches the JS runtime), we use one
+  script that iterates all lists AND projects, deduplicates by task ID, and returns
+  JSON. This also avoids hitting Things 3 with multiple automation requests.
+- **Process termination handler + DispatchSource timer for timeout.** We can't use
+  `Task.sleep` for timeout because `Process` termination callbacks are not async.
+  Instead, a GCD timer fires after 5 seconds and calls `process.terminate()`.
+- **ThingsError.notRunning detected two ways:** (1) pre-flight check via
+  `NSWorkspace.shared.runningApplications` before launching osascript, and
+  (2) parsing stderr for "is not running" / "Connection is invalid" if the
+  process fails.
+- **Task creation uses URL scheme, not JXA.** `things:///add?title=...&list=today`
+  opens Things 3 and creates the task. JXA's `make`/`push` doesn't work. Tasks
+  created this way land in Inbox regardless of the `list` parameter — this is a
+  Things 3 limitation.
+- **`import AppKit` needed for ThingsService** — `NSWorkspace` lives there, not in
+  Foundation. Easy to forget since SwiftUI implicitly imports AppKit in views.
+
+### Files created/modified
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `Briefing/Models/Task.swift` | Created | BriefingTask, TaskList, TaskSource |
+| `Briefing/Services/ThingsService.swift` | Created | JXA actor: fetch, complete, create |
+| `Briefing/Views/MenuBarPopover.swift` | Modified | Added tasks section, TaskRow, parallel loading |
+| `Briefing/BriefingApp.swift` | Modified | Pass ThingsService to popover |
+
+---
+
+## Phase 1 Complete — App builds and runs
+
+### Phase 1 Completed (2026-02-15)
+- [x] Installed xcodegen via Homebrew
+- [x] Created project.yml with Briefing + BriefingTests targets
+- [x] Info.plist with LSUIElement=YES, calendar/Apple Events usage descriptions
+- [x] Briefing.entitlements (kept on disk but NOT referenced in build — causes signing issues)
+- [x] BriefingApp.swift — @main with MenuBarExtra (.window style) + Settings scene
+- [x] CalendarEvent model with CalendarOwner enum (michael/noosh classification)
+- [x] FreeWindow and ConflictPair models
+- [x] CalendarService (actor) — EventKit fetch, conflict detection, free window identification
+- [x] DateFormatting utilities (time, day, duration formatters)
+- [x] MenuBarPopover — today's events, free windows, conflicts, Noosh's schedule
+- [x] EventRow component
+- [x] SettingsPlaceholderView — task directory path, calendar preferences
+- [x] CalendarServiceTests — 5 tests, all passing
+- [x] Build succeeds with ad-hoc signing (DEVELOPER_DIR workaround for xcode-select)
+
+### Build command
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+  -project Briefing.xcodeproj -scheme Briefing -configuration Debug build
+```
+
+### Run the app
+```bash
+open ~/Library/Developer/Xcode/DerivedData/Briefing-gaslbouinicyljglrpcyijaecsgq/Build/Products/Debug/Briefing.app
+```
+
+### Key discoveries during Phase 1
+
+- **`xcode-select` points to CLT, not Xcode.app.** Every `xcodebuild` call must be
+  prefixed with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`. Without
+  this, you get `error: tool 'xcodebuild' requires Xcode`.
+- **Swift 6 strict concurrency breaks the build.** Foundation types like
+  `ISO8601DateFormatter` are not `Sendable`, so static formatter properties fail.
+  Solution: use `SWIFT_VERSION: "5.0"` (still compiles with the Swift 6.2 toolchain,
+  just relaxes concurrency checking).
+- **Entitlements file causes provisioning errors with ad-hoc signing.** Specifically,
+  `keychain-access-groups` requires a real provisioning profile. The file exists on
+  disk for future distribution signing but is NOT referenced in `project.yml` build
+  settings. Calendar and Apple Events permissions work fine without it — macOS grants
+  them at runtime based on Info.plist usage description strings.
+- **`GENERATE_INFOPLIST_FILE: YES` needed for test target.** Without it, the test
+  bundle fails to code sign.
+- **xcodegen regenerates the entire `.xcodeproj`.** Run `xcodegen generate` after
+  any change to `project.yml`. Never hand-edit the `.xcodeproj`.
+
+### Files created
+
+| File | Purpose |
+|------|---------|
+| `project.yml` | xcodegen spec — targets, signing, build settings |
+| `Briefing/Info.plist` | LSUIElement=YES, privacy usage descriptions |
+| `Briefing/Briefing.entitlements` | Calendars, Apple Events, Keychain, Network (not in build) |
+| `Briefing/BriefingApp.swift` | @main entry, MenuBarExtra + Settings scenes |
+| `Briefing/Models/CalendarEvent.swift` | CalendarEvent, CalendarOwner, FreeWindow, ConflictPair |
+| `Briefing/Models/AppSettings.swift` | @Observable preferences with UserDefaults persistence |
+| `Briefing/Services/CalendarService.swift` | EventKit actor: fetch, conflicts, free windows |
+| `Briefing/Utilities/DateFormatting.swift` | Cached DateFormatter statics |
+| `Briefing/Views/MenuBarPopover.swift` | Popover UI + EventRow component |
+| `BriefingTests/CalendarServiceTests.swift` | 5 tests: owner classification, duration, formatting |
+
+---
+
+### Next
+- [ ] Phase 2: Things 3 integration
+- [ ] Phase 3: Task file I/O + sync
+- [ ] Phase 4: Claude API + briefing generation
+- [ ] Phase 5: Full window + PDF export
+- [ ] Phase 6: Scheduling + notifications
+- [ ] Phase 7: Polish
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                     UI Layer (SwiftUI)                │
+│  MenuBarExtra ──► Popover ──► Full Window ──► PDF    │
+│                    Settings Window                    │
+└─────────────────────┬────────────────────────────────┘
+                      │
+┌─────────────────────▼────────────────────────────────┐
+│              BriefingEngine (actor, orchestrator)      │
+│  Gathers data in parallel, calls Claude, produces     │
+│  Briefing model, triggers file updates                │
+└──┬──────┬──────┬──────┬──────┬───────────────────────┘
+   │      │      │      │      │
+   ▼      ▼      ▼      ▼      ▼
+Calendar Things3 TaskFile Claude  PDF
+Service  Service Service  API    Export
+   │      │      │       Service  Service
+   ▼      ▼      ▼        │
+EventKit Process  FileSystem  ▼
+         (JXA)   (iCloud)  api.anthropic.com
+```
+
+**Stack:** Swift + SwiftUI. Native frameworks only (EventKit, Security, UserNotifications).
+**macOS minimum:** 14 (Sonoma)
+**Distribution:** Direct download (not Mac App Store — avoids sandbox restrictions for Things 3 automation)
+
+---
+
+## Project Structure
+
+```
+Briefing/
+├── Briefing.xcodeproj
+├── Briefing/
+│   ├── BriefingApp.swift              # @main, MenuBarExtra + Window scenes
+│   ├── Info.plist                     # LSUIElement=YES, privacy descriptions
+│   ├── Briefing.entitlements          # Calendars, Apple Events, Keychain, Network
+│   │
+│   ├── Models/
+│   │   ├── CalendarEvent.swift        # Event from EventKit with owner classification
+│   │   ├── Task.swift                 # Task from Things 3 / todo.md
+│   │   ├── TaskDiff.swift             # Sync diff between Things 3 and todo.md
+│   │   ├── Briefing.swift             # Full briefing: timelines, priorities, analysis
+│   │   └── AppSettings.swift          # @Observable user preferences
+│   │
+│   ├── Services/
+│   │   ├── CalendarService.swift      # EventKit: fetch, conflict detect, free windows
+│   │   ├── ThingsService.swift        # JXA via Process: read, complete, URL-scheme add
+│   │   ├── TaskFileService.swift      # Read/write todo.md and todo-log.md
+│   │   ├── TaskSyncService.swift      # Things 3 <-> todo.md diffing
+│   │   ├── ClaudeAPIService.swift     # HTTP client for Anthropic Messages API
+│   │   ├── AuthService.swift          # Protocol-based: APIKeyAuth + OAuthAuth
+│   │   ├── KeychainService.swift      # Store/retrieve credentials from Keychain
+│   │   ├── BriefingEngine.swift       # Actor: orchestrates data gathering + Claude call
+│   │   ├── SchedulerService.swift     # Timer-based auto-run + UserNotifications
+│   │   └── PDFExportService.swift     # NSPrintOperation wrapper
+│   │
+│   ├── Views/
+│   │   ├── MenuBarPopover.swift       # Compact: today's events + top priorities
+│   │   ├── BriefingWindow.swift       # Full window with toolbar (Print, Refresh)
+│   │   ├── BriefingContentView.swift  # Rendered briefing (shared popover/window)
+│   │   ├── CalendarTimelineView.swift # Day-by-day visual timeline
+│   │   ├── TaskPriorityView.swift     # Must-do / should-do / waiting / stale
+│   │   ├── SyncDiffView.swift         # Things 3 vs todo.md diff for approval
+│   │   ├── SettingsView.swift         # Preferences: path, auth, schedule, calendars
+│   │   └── Components/               # EventRow, TaskRow, ConflictBadge, etc.
+│   │
+│   ├── Utilities/
+│   │   ├── MarkdownParser.swift       # Parse todo.md → [Task] with sections/projects
+│   │   ├── MarkdownWriter.swift       # Serialize [Task] → todo.md format
+│   │   └── DateFormatting.swift       # Shared formatters
+│   │
+│   └── Resources/
+│       └── BriefingPrompt.txt         # Prompt template with {{PLACEHOLDER}} tokens
+│
+├── BriefingTests/
+│   ├── MarkdownParserTests.swift
+│   ├── MarkdownWriterTests.swift
+│   ├── TaskSyncServiceTests.swift
+│   └── CalendarServiceTests.swift
+│
+├── PROGRESS.md                        # This file
+└── ENGINEERING_INVARIANTS.md
+```
+
+---
+
+## Key Decisions
+
+| Decision | Choice | Why |
+|----------|--------|-----|
+| Stack | Swift + SwiftUI | EventKit, Keychain, MenuBarExtra are native-only |
+| Claude model | Sonnet 4.5 default (configurable) | Best quality/cost/speed for daily analysis (~$0.06/run) |
+| Auth | API key primary, OAuth experimental | OAuth likely blocked for 3P apps |
+| Distribution | Direct download | Avoids sandbox — needed for Things 3 Apple Events |
+| PDF export | NSPrintOperation (system print dialog) | Zero custom PDF code; includes "Save as PDF" |
+| macOS minimum | 14 Sonoma | MenuBarExtra .window style, modern EventKit API |
+| Concurrency | async/await, BriefingEngine as actor | Thread-safe orchestration, parallel data fetching |
+
+---
+
+## Source Files to Port
+
+### ical.py → CalendarService.swift
+**Location:** `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/.task-system/ical.py`
+
+Key Swift EventKit code (lines 44-125) that currently gets compiled on the fly:
+- Uses `EKEventStore` with `requestFullAccessToEvents` (macOS 14+)
+- Fetches events with `predicateForEvents(withStart:end:calendars:nil)`
+- Formats: `h:mm a` time, groups by day, includes calendar name and source
+- Handles all-day events, location, notes (truncated to 200 chars)
+
+The native app will use this same EventKit logic directly — no compilation step needed.
+
+Also has event creation (lines 127-199) via EventKit and CalDAV fallback (lines 250+).
+
+### briefing.md → BriefingEngine.swift orchestration
+**Location:** `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/.claude/commands/briefing.md`
+
+Defines the workflow:
+1. Pull calendar events (ical.py week + cache)
+2. Read todo.md + recent todo-log.md
+3. Sync Things 3 via JXA (`Application("Things 3")`)
+4. Compare Things 3 vs todo.md, present diff for approval
+5. Generate briefing: calendar timeline, task priorities, bottom line
+6. Update todo-log.md with sync entry
+7. Update timestamps in todo.md
+
+### daily-briefing-prompt.md → BriefingPrompt.txt
+**Location:** `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/.task-system/daily-briefing-prompt.md`
+
+Steps for the prompt:
+1. Read CLAUDE.md preferences
+2. Check work calendar (Google Calendar MCP → will become EventKit)
+3. Check personal calendar (iCloud via CalDAV → will become EventKit)
+4. Merge calendars into single timeline
+5. Sync Things 3 via JXA
+6. Read todo.md
+7. Reconcile and update todo.md
+8. Append to todo-log.md
+9. Produce briefing: calendar, top 3 priorities, overdue, waiting-on, capacity assessment
+
+### CLAUDE.md → AppSettings.swift defaults
+**Location:** `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/CLAUDE.md`
+
+Key configuration:
+- Task files location: `~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing/`
+- Work calendar: mmaturo@experience.com
+- Personal calendar: michaelammaturo@icloud.com
+- **cal:Home = Noosh's calendar** → separate section, not Michael's timeline
+- All other Apple calendars → merge into main timeline
+- Things 3 is the mobile layer, sync bidirectionally
+- Protect focus time, flag stale/overdue items, be direct
+
+---
+
+## todo.md Format (Parser Requirements)
+
+The parser must handle:
+
+### Sections (identified by emoji + heading)
+- `## 🔴 Today` — highest priority active tasks
+- `## 📋 Projects` — organized by project sub-headings (`### Project Name`)
+- `## 🟠 Personal` — personal tasks
+- `## 🟡 Anytime (Unassigned)` — backlog
+- `## 🔵 Someday` — future/maybe items (also has project sub-headings)
+- `## ✅ Recently Completed` — done items
+
+### Task syntax
+- `- [ ] Task description` — open task
+- `- [x] Task description *(completed DATE)*` — completed task
+- Inline metadata in italics: `*(due DATE)*, *(notes)*`
+- Markdown links: `[text](url)`
+- Project context: `*(proj: Project Name)*`
+
+### Header
+```
+# Michael's Task System
+> **Last synced from Things 3:** 2026-02-15 10:55 PM PT
+> **Last AI review:** 2026-02-15 10:55 PM PT
+```
+
+### Preservation rules
+- Unmodified sections must be written back verbatim
+- Section order must be preserved
+- Project sub-headings under Projects and Someday must be preserved
+- Horizontal rules (`---`) separate sections
+
+---
+
+## Things 3 JXA Technical Notes
+
+From the briefing command and log entries:
+- **App name:** `"Things 3"` (with space) — NOT `"Things3"`
+- **Read tasks:** `osascript -l JavaScript` with `Application("Things 3")`
+- **Complete tasks:** Set `t.status = "completed"` via JXA
+- **Create tasks:** URL scheme `things:///add?title=...&notes=...&list=today` (JXA make/push doesn't work)
+- **Tasks created via URL scheme land in Inbox**
+- **Ghost tasks:** Empty-name tasks exist — filter them out
+- **Timeout:** 5-second timeout on JXA calls (Things 3 can hang)
+- **Lists to pull:** Inbox, Today, Upcoming, Anytime, Someday
+- **For each task:** name, project, due date, notes
+
+---
+
+## Calendar Rules (from CLAUDE.md)
+
+- **Work calendar:** mmaturo@experience.com — all events go in main timeline
+- **Personal calendars:** All Apple calendars EXCEPT cal:Home → main timeline
+- **cal:Home = Noosh's calendar** → separate "Noosh's Schedule" section
+- Free windows: minimum 45 minutes to be useful for deep work
+- Don't schedule deep work in 30-minute gaps between meetings
+- Flag scheduling conflicts
+- Note travel/logistics implications
+
+---
+
+## Authentication Design
+
+**Primary: Console API key**
+- User pastes `sk-ant-api03-...` from console.anthropic.com
+- Stored in macOS Keychain via Security framework
+- ~$0.06-0.09 per briefing with Sonnet 4.5
+
+**Secondary: OAuth (experimental toggle)**
+- PKCE flow, browser redirect, token stored in Keychain
+- Likely blocked for 3P apps — behind experimental toggle
+
+```swift
+protocol AuthProvider {
+    func authHeader() async throws -> (name: String, value: String)
+}
+
+struct APIKeyAuth: AuthProvider {  // "x-api-key" header
+    func authHeader() async throws -> (name: String, value: String) { ... }
+}
+
+struct OAuthAuth: AuthProvider {   // "Authorization: Bearer" header
+    func authHeader() async throws -> (name: String, value: String) { ... }
+}
+```
+
+---
+
+## Build Phases Detail
+
+### Phase 1: Skeleton + Calendar
+1. Create Xcode project, Info.plist (LSUIElement=YES), entitlements
+2. BriefingApp.swift with MenuBarExtra (.window style)
+3. CalendarService.swift — port EventKit from ical.py lines 44-125
+4. CalendarEvent model with CalendarOwner enum (michael/noosh/holiday)
+5. MenuBarPopover with today's events
+6. Conflict detection + free window identification (45+ min gaps)
+
+### Phase 2: Things 3 Integration
+1. Add Apple Events entitlement
+2. ThingsService.swift — JXA via Process
+3. Task model
+4. Read from all lists, handle ghost tasks, 5-second timeout
+
+### Phase 3: Task File I/O + Sync
+1. MarkdownParser — parse todo.md sections, projects, checkboxes, metadata
+2. MarkdownWriter — serialize back preserving unmodified sections
+3. TaskFileService — read/write from configurable iCloud Drive path
+4. TaskSyncService — diff Things 3 vs todo.md
+5. SyncDiffView — present diff for approval
+6. Round-trip tests
+
+### Phase 4: Claude API + Briefing Generation
+1. KeychainService — store/retrieve API key
+2. AuthService — AuthProvider protocol + APIKeyAuth
+3. ClaudeAPIService — HTTP client for Messages API
+4. BriefingPrompt.txt with placeholders
+5. BriefingEngine actor — parallel data gathering, prompt assembly, Claude call
+6. BriefingContentView — render Markdown
+7. SettingsView — API key, task directory, calendar filtering
+
+### Phase 5: Full Window + PDF
+1. Window scene (id: "briefing-window")
+2. BriefingWindow with toolbar
+3. PDF via NSPrintOperation
+
+### Phase 6: Scheduling + Notifications + OAuth
+1. SchedulerService — Timer + wake handling
+2. UserNotifications
+3. OAuthAuth implementation
+
+### Phase 7: Polish
+1. Error handling, first-run onboarding
+2. Noosh's schedule as separate section
+3. Visual conflict/free-window indicators
+
+---
+
+## Risks & Mitigations
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+| OAuth blocked for 3P apps | High | API key primary; OAuth behind toggle |
+| Things 3 JXA quirks | Medium | Hard-code "Things 3"; filter ghosts; timeout |
+| Apple Events permission | Medium | Distribute outside App Store |
+| Markdown parser fragility | Medium | Test against real snapshots; preserve verbatim |
+| iCloud Drive sync lag | Low | Show "last synced" timestamp; NSFileCoordinator |
+
+---
+
+## Environment Notes
+
+- Swift 6.2.3 (swiftlang-6.2.3.3.21)
+- Target: arm64-apple-macosx15.0
+- Xcode CLT at /Library/Developer/CommandLineTools
+- No xcodegen available — will create project manually or use `swift package init`
+- Full Xcode may be needed for proper .app bundle with entitlements

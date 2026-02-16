@@ -1,0 +1,48 @@
+name: Briefing
+options:
+  bundleIdPrefix: com.ammaturo
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.1"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  Briefing:
+    type: application
+    platform: macOS
+    sources:
+      - path: Briefing
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ammaturo.Briefing
+        PRODUCT_NAME: Briefing
+        INFOPLIST_FILE: Briefing/Info.plist
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: NO
+        COMBINE_HIDPI_IMAGES: YES
+
+  BriefingTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: BriefingTests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: Briefing
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ammaturo.BriefingTests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Briefing.app/Contents/MacOS/Briefing"
+        BUNDLE_LOADER: "$(TEST_HOST)"

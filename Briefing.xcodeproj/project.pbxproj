@@ -1,0 +1,477 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BC831826948D203D28B00B1 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0955CAD26254F75510EBB609 /* AppSettings.swift */; };
+		32CA30AC58DFBDC7218FDE51 /* ThingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E7D75E9527FFBC2859D93B /* ThingsService.swift */; };
+		501A7C32936B402AD913C2D1 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968965E2AB961B193125B5C2 /* DateFormatting.swift */; };
+		5B5B77A00F8B02A2B94BA38B /* CalendarEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */; };
+		7D1BBD1066F9EE3B988FD60B /* CalendarServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1176F9D5A3F28178A26B6FE5 /* CalendarServiceTests.swift */; };
+		98F42AB9CE30D06A44FCE43B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F051F302F899E29E8367576F /* CalendarService.swift */; };
+		A4548E35ED23772533EBBBC8 /* MenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */; };
+		A6677AB4225B44ADC04BB68A /* BriefingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FC78678B387CCB4A3D66AD /* BriefingApp.swift */; };
+		BDD75C6D64282978F0D6F6E5 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2A3FC7B4630BE48AB12FFC /* Task.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0AC29EED245A566548DE1641 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6DAB2341DCDD5B5C15BB32A4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 19AE5477A4A461D361C359C9;
+			remoteInfo = Briefing;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0955CAD26254F75510EBB609 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		0E3D4E1395B58FE0FF53B1C0 /* Briefing.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Briefing.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1176F9D5A3F28178A26B6FE5 /* CalendarServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarServiceTests.swift; sourceTree = "<group>"; };
+		2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEvent.swift; sourceTree = "<group>"; };
+		3C72B38FEEF943366D53BFFC /* BriefingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BriefingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		433BFBD44F838FE7B414FEE2 /* Briefing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Briefing.entitlements; sourceTree = "<group>"; };
+		4B2A3FC7B4630BE48AB12FFC /* Task.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
+		51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
+		968965E2AB961B193125B5C2 /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
+		A2E7D75E9527FFBC2859D93B /* ThingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThingsService.swift; sourceTree = "<group>"; };
+		D7FC78678B387CCB4A3D66AD /* BriefingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingApp.swift; sourceTree = "<group>"; };
+		E45F120A37991048D03B1250 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F051F302F899E29E8367576F /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		055DC75C413F79805F268137 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0E3D4E1395B58FE0FF53B1C0 /* Briefing.app */,
+				3C72B38FEEF943366D53BFFC /* BriefingTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		09A59214679DA27CCD6652A0 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F051F302F899E29E8367576F /* CalendarService.swift */,
+				A2E7D75E9527FFBC2859D93B /* ThingsService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		1A723769CDDCEB2F183390EE /* Components */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		2C080356FADA270016820E0C /* Briefing */ = {
+			isa = PBXGroup;
+			children = (
+				433BFBD44F838FE7B414FEE2 /* Briefing.entitlements */,
+				D7FC78678B387CCB4A3D66AD /* BriefingApp.swift */,
+				E45F120A37991048D03B1250 /* Info.plist */,
+				E6A42CFAD66527ACD6F7BECE /* Models */,
+				B23BE77C32E01D846361C52F /* Resources */,
+				09A59214679DA27CCD6652A0 /* Services */,
+				B7ECFBA92AD47C15C72DC880 /* Utilities */,
+				2D05712FF69711D95E88C872 /* Views */,
+			);
+			path = Briefing;
+			sourceTree = "<group>";
+		};
+		2D05712FF69711D95E88C872 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */,
+				1A723769CDDCEB2F183390EE /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A3DC6EB5A721285D5C6BC4B6 /* BriefingTests */ = {
+			isa = PBXGroup;
+			children = (
+				1176F9D5A3F28178A26B6FE5 /* CalendarServiceTests.swift */,
+			);
+			path = BriefingTests;
+			sourceTree = "<group>";
+		};
+		B23BE77C32E01D846361C52F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B7ECFBA92AD47C15C72DC880 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				968965E2AB961B193125B5C2 /* DateFormatting.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		DDD2ACCE1945EA9B90AC67FC = {
+			isa = PBXGroup;
+			children = (
+				2C080356FADA270016820E0C /* Briefing */,
+				A3DC6EB5A721285D5C6BC4B6 /* BriefingTests */,
+				055DC75C413F79805F268137 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E6A42CFAD66527ACD6F7BECE /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0955CAD26254F75510EBB609 /* AppSettings.swift */,
+				2857BEDFC6C38FDB2B7279E9 /* CalendarEvent.swift */,
+				4B2A3FC7B4630BE48AB12FFC /* Task.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		19AE5477A4A461D361C359C9 /* Briefing */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C24C4BAF2C8570A11C96EF4A /* Build configuration list for PBXNativeTarget "Briefing" */;
+			buildPhases = (
+				A3B0799CC56E36290D8C1753 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Briefing;
+			packageProductDependencies = (
+			);
+			productName = Briefing;
+			productReference = 0E3D4E1395B58FE0FF53B1C0 /* Briefing.app */;
+			productType = "com.apple.product-type.application";
+		};
+		27FCC3C067D57961BA10678E /* BriefingTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E539FB3D93E53BBC256D1285 /* Build configuration list for PBXNativeTarget "BriefingTests" */;
+			buildPhases = (
+				3FC5379EE3F99410C6B76C88 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AD7A8BF8C216B71E2C1641FF /* PBXTargetDependency */,
+			);
+			name = BriefingTests;
+			packageProductDependencies = (
+			);
+			productName = BriefingTests;
+			productReference = 3C72B38FEEF943366D53BFFC /* BriefingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6DAB2341DCDD5B5C15BB32A4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1610;
+				TargetAttributes = {
+					19AE5477A4A461D361C359C9 = {
+						ProvisioningStyle = Manual;
+					};
+					27FCC3C067D57961BA10678E = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 80260CB0FDA26401F1233D7D /* Build configuration list for PBXProject "Briefing" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = DDD2ACCE1945EA9B90AC67FC;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				19AE5477A4A461D361C359C9 /* Briefing */,
+				27FCC3C067D57961BA10678E /* BriefingTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3FC5379EE3F99410C6B76C88 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D1BBD1066F9EE3B988FD60B /* CalendarServiceTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A3B0799CC56E36290D8C1753 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0BC831826948D203D28B00B1 /* AppSettings.swift in Sources */,
+				A6677AB4225B44ADC04BB68A /* BriefingApp.swift in Sources */,
+				5B5B77A00F8B02A2B94BA38B /* CalendarEvent.swift in Sources */,
+				98F42AB9CE30D06A44FCE43B /* CalendarService.swift in Sources */,
+				501A7C32936B402AD913C2D1 /* DateFormatting.swift in Sources */,
+				A4548E35ED23772533EBBBC8 /* MenuBarPopover.swift in Sources */,
+				BDD75C6D64282978F0D6F6E5 /* Task.swift in Sources */,
+				32CA30AC58DFBDC7218FDE51 /* ThingsService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AD7A8BF8C216B71E2C1641FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 19AE5477A4A461D361C359C9 /* Briefing */;
+			targetProxy = 0AC29EED245A566548DE1641 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		295190DC192AE47E4BBC6404 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ammaturo.BriefingTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Briefing.app/Contents/MacOS/Briefing";
+			};
+			name = Debug;
+		};
+		4A2EFD4695968127BF742E6B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Briefing/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ammaturo.Briefing;
+				PRODUCT_NAME = Briefing;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		A459EE10FCF9E568ECC42B0F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ammaturo.BriefingTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Briefing.app/Contents/MacOS/Briefing";
+			};
+			name = Release;
+		};
+		C868FFFE8E839671EF4EF03A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		CD4889497F0667EF54325E1D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Briefing/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ammaturo.Briefing;
+				PRODUCT_NAME = Briefing;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DF68D07AE96CB1953145A941 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		80260CB0FDA26401F1233D7D /* Build configuration list for PBXProject "Briefing" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C868FFFE8E839671EF4EF03A /* Debug */,
+				DF68D07AE96CB1953145A941 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C24C4BAF2C8570A11C96EF4A /* Build configuration list for PBXNativeTarget "Briefing" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A2EFD4695968127BF742E6B /* Debug */,
+				CD4889497F0667EF54325E1D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E539FB3D93E53BBC256D1285 /* Build configuration list for PBXNativeTarget "BriefingTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				295190DC192AE47E4BBC6404 /* Debug */,
+				A459EE10FCF9E568ECC42B0F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6DAB2341DCDD5B5C15BB32A4 /* Project object */;
+}

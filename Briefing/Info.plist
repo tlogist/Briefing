@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hide from Dock — menu bar only app -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Calendar access description -->
+    <key>NSCalendarsUsageDescription</key>
+    <string>Briefing needs calendar access to show your daily schedule, detect conflicts, and find free work windows.</string>
+
+    <!-- Full calendar access (macOS 14+) -->
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Briefing needs full calendar access to read events from all your calendars and generate your daily briefing.</string>
+
+    <!-- Apple Events (for Things 3 automation) -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Briefing uses Apple Events to read tasks from Things 3 for bidirectional sync.</string>
+
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+</dict>
+</plist>
