@@ -18,7 +18,6 @@ struct MenuBarPopover: View {
     @State private var errorMessage: String?
     @State private var now = Date()
     @State private var briefingStatus: BriefingStatus = .idle
-    @Environment(\.openSettings) private var openSettings
 
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -102,10 +101,11 @@ struct MenuBarPopover: View {
             Spacer()
 
             Button(action: {
-                // Dismiss the popover, then open Settings and bring to front
+                // Close the popover, then show Settings as a floating panel.
+                // Using a custom NSPanel avoids activating the app, which would
+                // blank the system menu bar (LSUIElement has no main menu).
                 NSApp.keyWindow?.close()
-                openSettings()
-                NSApp.activate(ignoringOtherApps: true)
+                SettingsWindowController.shared.show(settings: settings)
             }) {
                 Label("Settings", systemImage: "gear")
                     .font(.caption)

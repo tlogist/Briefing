@@ -41,11 +41,6 @@ struct BriefingApp: App {
             )
         }
         .menuBarExtraStyle(.window)
-
-        // Settings window — opened via the standard Cmd+, shortcut
-        Settings {
-            SettingsView(settings: settings)
-        }
     }
 }
 

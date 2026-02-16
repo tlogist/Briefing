@@ -13,6 +13,7 @@
 		1502A31D00D378420BEB67F1 /* MarkdownParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A70B3D725489E538497A79 /* MarkdownParserTests.swift */; };
 		2940E4BF8F26359BA55AE42C /* MarkdownWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C702D65C5ADE3E82C1C4CF /* MarkdownWriter.swift */; };
 		32CA30AC58DFBDC7218FDE51 /* ThingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E7D75E9527FFBC2859D93B /* ThingsService.swift */; };
+		3E6496F0F0BEF4EC2B4D4187 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D3AD7F34765D338EB491FFE /* SettingsWindowController.swift */; };
 		501A7C32936B402AD913C2D1 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968965E2AB961B193125B5C2 /* DateFormatting.swift */; };
 		51989AB8515F6AF6E7CBB6D1 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A72157FFC01B6930B02490 /* MarkdownParser.swift */; };
 		5A0F59DF7276F6DB027EFA56 /* SyncDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250DD164117B3DD3C3A24179 /* SyncDiffView.swift */; };
@@ -54,6 +55,7 @@
 		42FFFFF78DB3AACAF51E76E1 /* BriefingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingEngine.swift; sourceTree = "<group>"; };
 		433BFBD44F838FE7B414FEE2 /* Briefing.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Briefing.entitlements; sourceTree = "<group>"; };
 		4B2A3FC7B4630BE48AB12FFC /* Task.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
+		4D3AD7F34765D338EB491FFE /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
 		5249CCABFE2FA3C517FF4BD2 /* TaskSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSyncService.swift; sourceTree = "<group>"; };
 		5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingContentView.swift; sourceTree = "<group>"; };
@@ -121,6 +123,7 @@
 			children = (
 				5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */,
 				51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */,
+				4D3AD7F34765D338EB491FFE /* SettingsWindowController.swift */,
 				250DD164117B3DD3C3A24179 /* SyncDiffView.swift */,
 				1A723769CDDCEB2F183390EE /* Components */,
 			);
@@ -289,6 +292,7 @@
 				51989AB8515F6AF6E7CBB6D1 /* MarkdownParser.swift in Sources */,
 				2940E4BF8F26359BA55AE42C /* MarkdownWriter.swift in Sources */,
 				A4548E35ED23772533EBBBC8 /* MenuBarPopover.swift in Sources */,
+				3E6496F0F0BEF4EC2B4D4187 /* SettingsWindowController.swift in Sources */,
 				5A0F59DF7276F6DB027EFA56 /* SyncDiffView.swift in Sources */,
 				BDD75C6D64282978F0D6F6E5 /* Task.swift in Sources */,
 				0D2F40CC3DE7FF5862C91344 /* TaskDiff.swift in Sources */,

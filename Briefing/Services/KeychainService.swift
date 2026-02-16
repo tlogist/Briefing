@@ -1,76 +1,35 @@
 import Foundation
-import Security
 
-// Thin wrapper around the macOS Keychain for storing API keys and tokens.
-// Uses kSecClassGenericPassword with a service name prefix so all Briefing
-// credentials are grouped together in Keychain Access.
+// Credential storage for API keys and tokens.
+//
+// Currently uses UserDefaults because ad-hoc code signing (CODE_SIGN_IDENTITY: "-")
+// triggers Keychain access prompts on every read. When the app is properly signed
+// for distribution, switch this to use the Security framework (SecItemAdd, etc.)
+// for proper encrypted storage.
+//
+// TODO: Switch to real Keychain when app is code-signed for distribution.
 enum KeychainService {
-    private static let serviceName = "com.ammaturo.Briefing"
+    private static let prefix = "com.ammaturo.Briefing."
 
     // MARK: - Store
 
-    /// Save a string value to the Keychain under the given key.
-    /// Overwrites any existing value for that key.
+    /// Save a string value under the given key.
     static func save(key: String, value: String) throws {
-        guard let data = value.data(using: .utf8) else {
-            throw KeychainError.encodingFailed
-        }
-
-        // Delete any existing item first (update = delete + add)
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.saveFailed(status)
-        }
+        UserDefaults.standard.set(value, forKey: prefix + key)
     }
 
     // MARK: - Retrieve
 
-    /// Read a string value from the Keychain. Returns nil if the key doesn't exist.
+    /// Read a string value. Returns nil if the key doesn't exist.
     static func load(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let string = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return string
+        UserDefaults.standard.string(forKey: prefix + key)
     }
 
     // MARK: - Delete
 
-    /// Remove a value from the Keychain.
+    /// Remove a value.
     static func delete(key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: key
-        ]
-        SecItemDelete(query as CFDictionary)
+        UserDefaults.standard.removeObject(forKey: prefix + key)
     }
 
     // MARK: - Convenience
@@ -89,8 +48,8 @@ enum KeychainError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .encodingFailed: return "Failed to encode value for Keychain"
-        case .saveFailed(let status): return "Keychain save failed (status: \(status))"
+        case .encodingFailed: return "Failed to encode value"
+        case .saveFailed(let status): return "Save failed (status: \(status))"
         }
     }
 }
