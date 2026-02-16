@@ -7,8 +7,9 @@
 
 ## Things 3 Integration
 
-- **App name is `"Things 3"` (with a space).** Not "Things3". JXA calls will fail silently
-  with the wrong name.
+- **App name varies by version.** Older installs register as `"Things 3"` (with
+  a space), newer ones as `"Things3"` (no space). JXA scripts must try both —
+  use the `resolveApp` snippet in ThingsService rather than hardcoding either name.
 - **JXA `make`/`push` does NOT work for creating tasks.** Use the URL scheme instead:
   `things:///add?title=...&notes=...&list=today`. Tasks created this way land in Inbox.
 - **Ghost tasks exist.** Things 3 sometimes has tasks with empty names. Always filter

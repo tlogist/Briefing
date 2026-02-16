@@ -13,6 +13,17 @@ import Foundation
 actor ThingsService {
     private let timeoutSeconds: Double = 5.0
 
+    /// JXA snippet that resolves the Things app regardless of whether it's
+    /// registered as "Things 3" (older versions) or "Things3" (newer versions).
+    /// Injected at the top of every JXA script so the rest can just use `app`.
+    private let resolveApp = """
+        const app = (() => {
+            try { return Application("Things 3"); } catch(e) {}
+            try { return Application("Things3"); } catch(e) {}
+            throw new Error("Things not found");
+        })();
+        """
+
     // MARK: - Read Tasks
 
     /// Fetch all open tasks from Things 3, grouped by list.
@@ -22,7 +33,7 @@ actor ThingsService {
         // separate calls per list since each osascript invocation has overhead.
         let script = """
         (() => {
-            const app = Application("Things 3");
+            \(resolveApp)
             const results = [];
 
             const lists = ["Inbox", "Today", "Upcoming", "Anytime", "Someday"];
@@ -126,7 +137,7 @@ actor ThingsService {
     func completeTask(id: String) async throws {
         let script = """
         (() => {
-            const app = Application("Things 3");
+            \(resolveApp)
             const todo = app.toDos.byId("\(id)");
             todo.status = "completed";
             return "OK";
