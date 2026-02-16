@@ -91,6 +91,18 @@
   work events with cached personal events. All-day events sort first, then
   chronological.
 
+## Things 3 Task Cache (iCloud Drive)
+
+- **Same write/read pattern as the calendar cache.** Personal Mac writes all
+  Things 3 tasks to `things-task-cache.json`; work Mac reads as fallback when
+  Things 3 is inaccessible (not running, permissions, macOS version issues).
+- **Detection is error-based.** Unlike the calendar cache (which checks for
+  iCloud events), the Things cache simply tries to fetch and falls back on any
+  failure. If Things works → write cache. If Things fails → read cache.
+- **Cache contains ALL tasks, not just today's.** The writer caches every list
+  (Inbox, Today, Upcoming, Anytime, Someday) so the work Mac can use the full
+  set for briefing generation. The popover filters to Today at read time.
+
 ## Claude API
 
 - **Default model: claude-sonnet-4-5-20250929.** Configurable in settings.

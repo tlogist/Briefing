@@ -20,7 +20,8 @@ struct MenuBarPopover: View {
     @State private var errorMessage: String?
     @State private var now = Date()
     @State private var lastRefreshed: Date?
-    @State private var personalCalCachedAt: Date?  // non-nil when using cached personal events
+    @State private var personalCalCachedAt: Date?   // non-nil when using cached personal events
+    @State private var thingsCachedAt: Date?         // non-nil when using cached Things tasks
     @State private var briefingStatus: BriefingStatus = .idle
     // Cache generated briefings per scope so repeated clicks don't re-call Claude
     @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
@@ -112,6 +113,11 @@ struct MenuBarPopover: View {
                     }
                     if let cachedAt = personalCalCachedAt {
                         Text("· Personal cal: cached \(relativeTime(since: cachedAt))")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                    if let cachedAt = thingsCachedAt {
+                        Text("· Tasks: cached \(relativeTime(since: cachedAt))")
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     }
@@ -921,19 +927,25 @@ struct MenuBarPopover: View {
     }
 
     private func loadTasks() async {
-        do {
-            todayTasks = try await thingsService.fetchTodayTasks()
+        let result = await thingsService.fetchTodayTasksWithCache(
+            cacheDirectoryPath: settings.taskDirectoryPath
+        )
+        todayTasks = result.tasks
+
+        switch result.status {
+        case .live:
             thingsStatus = .available
-        } catch {
-            // Distinguish "Things 3 not running" from other errors
-            // so the UI can show a helpful hint instead of a scary error
-            if let thingsError = error as? ThingsError,
-               case .notRunning = thingsError {
-                thingsStatus = .notRunning
-            } else {
-                thingsStatus = .error(error.localizedDescription)
-            }
-            todayTasks = []
+            thingsCachedAt = nil
+        case .cached(let cachedAt):
+            thingsStatus = .available
+            thingsCachedAt = cachedAt
+        case .notRunning:
+            // Show cached tasks if we have them, but note Things isn't running
+            thingsStatus = result.tasks.isEmpty ? .notRunning : .available
+            thingsCachedAt = await thingsService.lastThingsCacheDate
+        case .error(let msg):
+            thingsStatus = result.tasks.isEmpty ? .error(msg) : .available
+            thingsCachedAt = await thingsService.lastThingsCacheDate
         }
     }
 }

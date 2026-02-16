@@ -13,6 +13,10 @@ import Foundation
 actor ThingsService {
     private let timeoutSeconds: Double = 5.0
 
+    /// Non-nil when the last fetch used cached tasks (i.e., Things 3 wasn't
+    /// accessible on this Mac). The UI reads this to show freshness.
+    private(set) var lastThingsCacheDate: Date?
+
     /// JXA snippet that resolves the Things app regardless of whether it's
     /// registered as "Things 3" (older versions) or "Things3" (newer versions).
     /// Injected at the top of every JXA script so the rest can just use `app`.
@@ -129,6 +133,64 @@ actor ThingsService {
     func fetchTodayTasks() async throws -> [BriefingTask] {
         let all = try await fetchAllTasks()
         return all.filter { $0.list == .today && !$0.isCompleted }
+    }
+
+    // MARK: - Things 3 Task Cache
+
+    /// Fetch all tasks with iCloud Drive cache fallback.
+    ///
+    /// If Things 3 is accessible: fetches live, writes cache, returns tasks.
+    /// If Things 3 fails (not running, timeout, permissions): falls back to
+    /// cached tasks from iCloud Drive (written by the personal Mac).
+    func fetchAllTasksWithCache(
+        cacheDirectoryPath: String
+    ) async -> [BriefingTask] {
+        do {
+            let tasks = try await fetchAllTasks()
+            // Success — write cache for the other Mac and clear cache indicator
+            ThingsCache.save(tasks: tasks, to: cacheDirectoryPath)
+            lastThingsCacheDate = nil
+            return tasks
+        } catch {
+            // Things 3 not accessible — fall back to cached tasks
+            if let cached = ThingsCache.load(from: cacheDirectoryPath) {
+                lastThingsCacheDate = cached.cachedAt
+                return cached.tasks
+            }
+            lastThingsCacheDate = nil
+            return []
+        }
+    }
+
+    /// Fetch today's tasks with iCloud Drive cache fallback.
+    func fetchTodayTasksWithCache(
+        cacheDirectoryPath: String
+    ) async -> (tasks: [BriefingTask], status: ThingsFetchStatus) {
+        do {
+            // Fetch all tasks once — filter for today, cache everything
+            let allTasks = try await fetchAllTasks()
+            let todayTasks = allTasks.filter { $0.list == .today && !$0.isCompleted }
+            ThingsCache.save(tasks: allTasks, to: cacheDirectoryPath)
+            lastThingsCacheDate = nil
+            return (todayTasks, .live)
+        } catch {
+            // Fall back to cached tasks, filtered to today
+            if let cached = ThingsCache.load(from: cacheDirectoryPath) {
+                lastThingsCacheDate = cached.cachedAt
+                let todayTasks = cached.tasks.filter {
+                    $0.list == .today && !$0.isCompleted
+                }
+                return (todayTasks, .cached(cached.cachedAt))
+            }
+            lastThingsCacheDate = nil
+
+            // Preserve the original error type for UI messaging
+            if let thingsError = error as? ThingsError,
+               case .notRunning = thingsError {
+                return ([], .notRunning)
+            }
+            return ([], .error(error.localizedDescription))
+        }
     }
 
     // MARK: - Complete a Task
@@ -261,6 +323,17 @@ private struct ThingsRawTask: Decodable {
     let notes: String?
     let tags: String
     let status: String
+}
+
+// MARK: - Fetch Status
+
+/// Result status from cache-aware Things fetch — lets the UI show
+/// the right message (live, cached with timestamp, not running, error).
+enum ThingsFetchStatus {
+    case live
+    case cached(Date)
+    case notRunning
+    case error(String)
 }
 
 // MARK: - Errors

@@ -205,12 +205,9 @@ actor BriefingEngine {
     }
 
     private func gatherTasksData() async -> [BriefingTask] {
-        do {
-            return try await thingsService.fetchAllTasks()
-        } catch {
-            // Things 3 not running is expected — don't fail the whole briefing
-            return []
-        }
+        await thingsService.fetchAllTasksWithCache(
+            cacheDirectoryPath: settings.taskDirectoryPath
+        )
     }
 
     /// Only reads the activity log now — tasks come from Things 3 directly.
