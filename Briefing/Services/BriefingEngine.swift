@@ -176,13 +176,17 @@ actor BriefingEngine {
     }
 
     private func gatherCalendarData(scope: BriefingScope) async throws -> CalendarData {
+        let cachePath = settings.taskDirectoryPath
         let allEvents: [CalendarEvent]
         switch scope {
         case .today:
-            allEvents = try await calendarService.fetchTodayEvents()
+            allEvents = try await calendarService.fetchTodayEventsWithCache(
+                cacheDirectoryPath: cachePath
+            )
         case .week:
-            allEvents = try await calendarService.fetchWeekEvents(
-                daysAhead: settings.calendarDaysAhead
+            allEvents = try await calendarService.fetchWeekEventsWithCache(
+                daysAhead: settings.calendarDaysAhead,
+                cacheDirectoryPath: cachePath
             )
         }
         let michael = allEvents.filter { $0.owner == .michael }

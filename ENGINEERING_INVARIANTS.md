@@ -69,6 +69,27 @@
 - **LSUIElement=YES in Info.plist.** The app should not appear in the Dock.
 - **Distribute outside App Store.** The sandbox blocks Apple Events needed for Things 3.
 
+## Personal Calendar Cache (iCloud Drive)
+
+- **Personal Mac writes, work Mac reads.** When iCloud calendars have actual
+  events, the app writes them to `personal-calendar-cache.json` in the shared
+  iCloud Drive folder. When iCloud calendars are empty, it reads and merges
+  cached events.
+- **Detection is EVENT-BASED, not source-based.** Both Macs may have iCloud
+  configured in Apple Calendar — the work Mac just has blank iCloud calendars.
+  Checking `store.sources` would return true on both. Instead, scan a 14-day
+  window for events with `calendarSource == "iCloud"`. If any exist → write.
+  If zero → read cache.
+- **Cache window is 14 days.** The writer always caches a full 14-day window
+  regardless of the requested date range, so the work Mac has enough data for
+  both the popover (today) and the week briefing.
+- **Cache file is distinct from other files.** It lives at
+  `{taskDirectoryPath}/personal-calendar-cache.json` — do not confuse with the
+  old `.txt` cache or `PopoverDataCache` (which uses UserDefaults).
+- **Cached events are merged, not replaced.** The work Mac combines its live
+  work events with cached personal events. All-day events sort first, then
+  chronological.
+
 ## Claude API
 
 - **Default model: claude-sonnet-4-5-20250929.** Configurable in settings.

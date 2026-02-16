@@ -20,6 +20,7 @@ struct MenuBarPopover: View {
     @State private var errorMessage: String?
     @State private var now = Date()
     @State private var lastRefreshed: Date?
+    @State private var personalCalCachedAt: Date?  // non-nil when using cached personal events
     @State private var briefingStatus: BriefingStatus = .idle
     // Cache generated briefings per scope so repeated clicks don't re-call Claude
     @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
@@ -108,6 +109,11 @@ struct MenuBarPopover: View {
                         Text("· \(relativeTime(since: refreshed))")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+                    }
+                    if let cachedAt = personalCalCachedAt {
+                        Text("· Personal cal: cached \(relativeTime(since: cachedAt))")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
                     }
                 }
             }
@@ -863,7 +869,9 @@ struct MenuBarPopover: View {
 
     private func loadCalendar() async {
         do {
-            let allEvents = try await calendarService.fetchTodayEvents()
+            let allEvents = try await calendarService.fetchTodayEventsWithCache(
+                cacheDirectoryPath: settings.taskDirectoryPath
+            )
             michaelEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .michael })
             nooshEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .noosh })
             conflicts = await calendarService.detectConflicts(in: allEvents)
@@ -871,6 +879,10 @@ struct MenuBarPopover: View {
                 in: allEvents,
                 minimumMinutes: settings.minimumFreeWindowMinutes
             )
+
+            // Show cache freshness if personal events came from cache
+            // (set by fetchEventsWithPersonalCache when no active iCloud events found)
+            personalCalCachedAt = await calendarService.lastPersonalCalCacheDate
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -11,6 +11,10 @@ actor CalendarService {
     private let store = EKEventStore()
     private var accessGranted = false
 
+    /// Non-nil when the last fetch used cached personal events (i.e., this Mac
+    /// has no active iCloud calendar events). The UI reads this to show freshness.
+    private(set) var lastPersonalCalCacheDate: Date?
+
     // MARK: - Authorization
 
     /// Request calendar access. On macOS 14+ this uses requestFullAccessToEvents
@@ -68,6 +72,90 @@ actor CalendarService {
         let start = cal.startOfDay(for: Date())
         let end = cal.date(byAdding: .day, value: daysAhead, to: start)!
         return try await fetchEvents(from: start, to: end)
+    }
+
+    // MARK: - iCloud Detection & Personal Calendar Cache
+
+    /// Fetch events with transparent personal calendar caching.
+    ///
+    /// Detection is EVENT-BASED, not source-based. Both Macs may have iCloud
+    /// configured in Apple Calendar, but only the personal Mac has actual events
+    /// in its iCloud calendars. We scan a 14-day window for any event with
+    /// `calendarSource == "iCloud"`:
+    ///
+    ///   - If iCloud events exist → this Mac has active personal calendars → write cache
+    ///   - If no iCloud events   → iCloud calendars are blank → read cache and merge
+    ///
+    /// The 14-day window makes false negatives (personal Mac with zero iCloud
+    /// events for 2 weeks) extremely unlikely in practice.
+    func fetchEventsWithPersonalCache(
+        from start: Date,
+        to end: Date,
+        cacheDirectoryPath: String
+    ) async throws -> [CalendarEvent] {
+        let liveEvents = try await fetchEvents(from: start, to: end)
+
+        // Check the full 14-day window for any iCloud-sourced events.
+        // This is the reliable signal — store.sources can't distinguish
+        // "iCloud configured with events" from "iCloud configured but blank."
+        let cal = Calendar.current
+        let cacheStart = cal.startOfDay(for: Date())
+        let cacheEnd = cal.date(byAdding: .day, value: 14, to: cacheStart)!
+        let windowEvents = try await fetchEvents(from: cacheStart, to: cacheEnd)
+        let iCloudEvents = windowEvents.filter { $0.calendarSource == "iCloud" }
+
+        if !iCloudEvents.isEmpty {
+            // This Mac has active personal calendars — write cache
+            CalendarCache.save(events: iCloudEvents, to: cacheDirectoryPath)
+            lastPersonalCalCacheDate = nil
+            return liveEvents
+        } else {
+            // No active iCloud events — read cache and merge
+            guard let cached = CalendarCache.load(from: cacheDirectoryPath) else {
+                lastPersonalCalCacheDate = nil
+                return liveEvents
+            }
+
+            lastPersonalCalCacheDate = cached.cachedAt
+
+            // Filter cached events to the requested date range
+            let relevantCached = cached.events.filter {
+                $0.startDate >= start && $0.startDate < end
+            }
+
+            // Merge and sort: all-day first, then chronologically
+            return (liveEvents + relevantCached).sorted { lhs, rhs in
+                if lhs.isAllDay != rhs.isAllDay {
+                    return lhs.isAllDay
+                }
+                return lhs.startDate < rhs.startDate
+            }
+        }
+    }
+
+    /// Convenience: fetch today's events with personal calendar cache.
+    func fetchTodayEventsWithCache(
+        cacheDirectoryPath: String
+    ) async throws -> [CalendarEvent] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: Date())
+        let end = cal.date(byAdding: .day, value: 1, to: start)!
+        return try await fetchEventsWithPersonalCache(
+            from: start, to: end, cacheDirectoryPath: cacheDirectoryPath
+        )
+    }
+
+    /// Convenience: fetch week events with personal calendar cache.
+    func fetchWeekEventsWithCache(
+        daysAhead: Int = 7,
+        cacheDirectoryPath: String
+    ) async throws -> [CalendarEvent] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: Date())
+        let end = cal.date(byAdding: .day, value: daysAhead, to: start)!
+        return try await fetchEventsWithPersonalCache(
+            from: start, to: end, cacheDirectoryPath: cacheDirectoryPath
+        )
     }
 
     // MARK: - Conflict Detection

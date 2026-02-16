@@ -77,6 +77,50 @@ struct FreeWindow: Identifiable, Sendable, Codable {
     }
 }
 
+// MARK: - Personal Calendar Cache (iCloud Drive)
+
+/// Wraps cached personal (iCloud) calendar events with a timestamp so the
+/// consuming Mac can show freshness ("cached 2h ago").
+struct CachedCalendarData: Codable {
+    let events: [CalendarEvent]
+    let cachedAt: Date
+}
+
+/// Reads/writes iCloud-sourced personal calendar events to a JSON file in the
+/// shared iCloud Drive folder. The personal Mac writes; the work Mac reads.
+///
+/// Follows the same static-enum pattern as PopoverDataCache / BriefingCache.
+enum CalendarCache {
+    private static let filename = "personal-calendar-cache.json"
+
+    /// Write personal (iCloud) events to the shared cache file.
+    static func save(events: [CalendarEvent], to directoryPath: String) {
+        let data = CachedCalendarData(events: events, cachedAt: Date())
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        guard let jsonData = try? encoder.encode(data) else { return }
+
+        let fileURL = URL(fileURLWithPath: directoryPath)
+            .appendingPathComponent(filename)
+        try? jsonData.write(to: fileURL, options: .atomic)
+    }
+
+    /// Load cached personal events from the shared cache file.
+    /// Returns nil if the file doesn't exist or can't be decoded.
+    static func load(from directoryPath: String) -> CachedCalendarData? {
+        let fileURL = URL(fileURLWithPath: directoryPath)
+            .appendingPathComponent(filename)
+
+        guard let jsonData = try? Data(contentsOf: fileURL) else { return nil }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(CachedCalendarData.self, from: jsonData)
+    }
+}
+
 // Two events that overlap in time
 struct ConflictPair: Identifiable, Sendable, Codable {
     let id: UUID
