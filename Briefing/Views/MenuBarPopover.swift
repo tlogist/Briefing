@@ -764,11 +764,27 @@ struct MenuBarPopover: View {
 
     // MARK: - Data Loading
 
+    /// Load cached data instantly (no spinner), then refresh from live sources
+    /// in the background. Only shows a loading spinner on first launch with
+    /// no cache at all.
     private func loadAll() async {
-        isLoading = true
         errorMessage = nil
 
-        // Load calendar and tasks in parallel
+        // Restore from cache first — popover appears instantly with stale data
+        let hasCachedData = PopoverDataCache.restore(
+            michaelEvents: &michaelEvents,
+            nooshEvents: &nooshEvents,
+            conflicts: &conflicts,
+            freeWindows: &freeWindows,
+            todayTasks: &todayTasks
+        )
+
+        // Only show spinner if there's nothing cached to display
+        if !hasCachedData {
+            isLoading = true
+        }
+
+        // Refresh from live sources in the background
         async let calendarResult: () = loadCalendar()
         async let tasksResult: () = loadTasks()
 
@@ -776,6 +792,15 @@ struct MenuBarPopover: View {
         await tasksResult
 
         isLoading = false
+
+        // Persist the fresh data for next time
+        PopoverDataCache.save(
+            michaelEvents: michaelEvents,
+            nooshEvents: nooshEvents,
+            conflicts: conflicts,
+            freeWindows: freeWindows,
+            todayTasks: todayTasks
+        )
     }
 
     private func loadCalendar() async {
@@ -975,5 +1000,63 @@ struct TaskRow: View {
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Popover Data Cache
+
+/// Caches the popover's calendar events and tasks to UserDefaults so the
+/// popover can show data instantly on open while refreshing in the background.
+/// This eliminates the 3-4 second loading spinner on every popover open.
+enum PopoverDataCache {
+    private static let prefix = "com.ammaturo.Briefing.popoverCache."
+
+    private struct Snapshot: Codable {
+        let michaelEvents: [CalendarEvent]
+        let nooshEvents: [CalendarEvent]
+        let conflicts: [ConflictPair]
+        let freeWindows: [FreeWindow]
+        let todayTasks: [BriefingTask]
+        let savedAt: Date
+    }
+
+    static func save(
+        michaelEvents: [CalendarEvent],
+        nooshEvents: [CalendarEvent],
+        conflicts: [ConflictPair],
+        freeWindows: [FreeWindow],
+        todayTasks: [BriefingTask]
+    ) {
+        let snapshot = Snapshot(
+            michaelEvents: michaelEvents,
+            nooshEvents: nooshEvents,
+            conflicts: conflicts,
+            freeWindows: freeWindows,
+            todayTasks: todayTasks,
+            savedAt: Date()
+        )
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        UserDefaults.standard.set(data, forKey: prefix + "snapshot")
+    }
+
+    /// Restore cached data into the provided bindings. Returns true if
+    /// cached data was available (even if stale).
+    static func restore(
+        michaelEvents: inout [CalendarEvent],
+        nooshEvents: inout [CalendarEvent],
+        conflicts: inout [ConflictPair],
+        freeWindows: inout [FreeWindow],
+        todayTasks: inout [BriefingTask]
+    ) -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: prefix + "snapshot"),
+              let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else {
+            return false
+        }
+        michaelEvents = snapshot.michaelEvents
+        nooshEvents = snapshot.nooshEvents
+        conflicts = snapshot.conflicts
+        freeWindows = snapshot.freeWindows
+        todayTasks = snapshot.todayTasks
+        return true
     }
 }

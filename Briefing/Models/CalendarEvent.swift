@@ -3,7 +3,7 @@ import EventKit
 
 // Determines whose calendar an event belongs to, based on the calendar name.
 // cal:Home = Noosh's calendar. Everything else = Michael's.
-enum CalendarOwner: String, Sendable {
+enum CalendarOwner: String, Sendable, Codable {
     case michael
     case noosh
     case other
@@ -17,7 +17,7 @@ enum CalendarOwner: String, Sendable {
     }
 }
 
-struct CalendarEvent: Identifiable, Sendable {
+struct CalendarEvent: Identifiable, Sendable, Codable {
     let id: String               // EKEvent.eventIdentifier
     let title: String
     let startDate: Date
@@ -46,22 +46,46 @@ struct CalendarEvent: Identifiable, Sendable {
         self.calendarSource = ekEvent.calendar.source?.title ?? "Unknown"
         self.owner = CalendarOwner.classify(calendarTitle: ekEvent.calendar.title)
     }
+
+    // Memberwise init for decoding from cache
+    init(
+        id: String, title: String, startDate: Date, endDate: Date,
+        isAllDay: Bool, location: String?, notes: String?,
+        calendarName: String, calendarSource: String, owner: CalendarOwner
+    ) {
+        self.id = id; self.title = title; self.startDate = startDate
+        self.endDate = endDate; self.isAllDay = isAllDay; self.location = location
+        self.notes = notes; self.calendarName = calendarName
+        self.calendarSource = calendarSource; self.owner = owner
+    }
 }
 
 // A gap between meetings where actual work could get done
-struct FreeWindow: Identifiable, Sendable {
-    let id = UUID()
+struct FreeWindow: Identifiable, Sendable, Codable {
+    let id: UUID
     let startDate: Date
     let endDate: Date
 
     var durationMinutes: Int {
         Int(endDate.timeIntervalSince(startDate) / 60)
     }
+
+    init(startDate: Date, endDate: Date) {
+        self.id = UUID()
+        self.startDate = startDate
+        self.endDate = endDate
+    }
 }
 
 // Two events that overlap in time
-struct ConflictPair: Identifiable, Sendable {
-    let id = UUID()
+struct ConflictPair: Identifiable, Sendable, Codable {
+    let id: UUID
     let event1: CalendarEvent
     let event2: CalendarEvent
+
+    init(event1: CalendarEvent, event2: CalendarEvent) {
+        self.id = UUID()
+        self.event1 = event1
+        self.event2 = event2
+    }
 }

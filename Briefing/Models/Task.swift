@@ -2,7 +2,7 @@ import Foundation
 
 // Which Things 3 list a task lives in. Maps directly to Things 3's
 // built-in lists. The raw string values match what JXA returns.
-enum TaskList: String, CaseIterable, Sendable {
+enum TaskList: String, CaseIterable, Sendable, Codable {
     case inbox = "Inbox"
     case today = "Today"
     case upcoming = "Upcoming"
@@ -22,7 +22,7 @@ enum TaskList: String, CaseIterable, Sendable {
 }
 
 // Where a task originated — matters for sync diffing later
-enum TaskSource: String, Sendable {
+enum TaskSource: String, Sendable, Codable {
     case things3
     case todoFile
     case both  // exists in both, matched by name
@@ -30,7 +30,7 @@ enum TaskSource: String, Sendable {
 
 // A task from Things 3, todo.md, or both. Used across the app for
 // display, sync diffing, and briefing generation.
-struct BriefingTask: Identifiable, Sendable {
+struct BriefingTask: Identifiable, Sendable, Codable {
     let id: String              // Things 3 ID or generated UUID for file-only tasks
     let name: String
     let project: String?        // Things 3 project name, or ### heading from todo.md
