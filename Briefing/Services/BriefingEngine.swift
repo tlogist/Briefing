@@ -35,14 +35,14 @@ actor BriefingEngine {
 
         onStatusChange(.gatheringData)
 
-        // Gather all data in parallel
+        // Gather all data in parallel — Things 3 is the sole task source
         async let calendarData = gatherCalendarData(scope: scope)
         async let tasksData = gatherTasksData()
-        async let fileData = gatherFileData()
+        async let logData = gatherLogData()
 
         let calendar = try await calendarData
         let tasks = await tasksData
-        let files = try await fileData
+        let logTail = await logData
 
         onStatusChange(.callingClaude)
 
@@ -51,7 +51,7 @@ actor BriefingEngine {
             scope: scope,
             calendar: calendar,
             tasks: tasks,
-            files: files
+            logTail: logTail
         )
 
         // Call Claude
@@ -81,7 +81,89 @@ actor BriefingEngine {
         )
 
         onStatusChange(.complete(result))
+
+        // Export current Things 3 tasks to todo.md as an archive/reference copy.
+        // This runs after the briefing so it never blocks or feeds stale data
+        // back into the prompt — Things 3 is the source of truth.
+        let dirPath = settings.taskDirectoryPath
+        Task.detached {
+            Self.exportTasksToFile(tasks: tasks, directoryPath: dirPath)
+        }
+
         return result
+    }
+
+    /// Write a snapshot of Things 3 tasks to todo.md so there's a readable
+    /// file on disk. This is a one-way export — the file is never read back
+    /// into the briefing prompt.
+    private static func exportTasksToFile(
+        tasks: [BriefingTask],
+        directoryPath: String
+    ) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd h:mm a zzz"
+        let timestamp = formatter.string(from: Date())
+
+        var lines: [String] = [
+            "# Michael's Task System",
+            "",
+            "> **Exported from Things 3:** \(timestamp)",
+            "> This file is auto-generated from Things 3 — do not edit manually.",
+            "",
+            "---",
+            ""
+        ]
+
+        // Group tasks by list
+        let listOrder: [TaskList] = [.today, .inbox, .upcoming, .anytime, .someday]
+        let listEmoji: [TaskList: String] = [
+            .today: "🔴", .inbox: "📥", .upcoming: "📆",
+            .anytime: "🟡", .someday: "🔵"
+        ]
+
+        for list in listOrder {
+            let listTasks = tasks.filter { $0.list == list && !$0.isCompleted }
+            guard !listTasks.isEmpty else { continue }
+
+            let emoji = listEmoji[list] ?? ""
+            lines.append("## \(emoji) \(list.rawValue)")
+            lines.append("")
+
+            // Group by project within each list
+            let withProject = listTasks.filter { $0.project != nil }
+            let withoutProject = listTasks.filter { $0.project == nil }
+
+            for task in withoutProject {
+                lines.append(formatExportTask(task))
+            }
+
+            let byProject = Dictionary(grouping: withProject) { $0.project! }
+            for projectName in byProject.keys.sorted() {
+                lines.append("")
+                lines.append("### \(projectName)")
+                for task in byProject[projectName]! {
+                    lines.append(formatExportTask(task))
+                }
+            }
+
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+        }
+
+        let content = lines.joined(separator: "\n")
+        let fileURL = URL(fileURLWithPath: directoryPath).appendingPathComponent("todo.md")
+        try? content.data(using: .utf8)?.write(to: fileURL, options: .atomic)
+    }
+
+    private static func formatExportTask(_ task: BriefingTask) -> String {
+        var line = "- [ ] \(task.name)"
+        if let due = task.dueDate {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "EEE M/d"
+            line += " *(due \(fmt.string(from: due)))*"
+        }
+        return line
     }
 
     // MARK: - Data Gathering
@@ -127,16 +209,9 @@ actor BriefingEngine {
         }
     }
 
-    private struct FileData {
-        let todoContent: String
-        let logTail: String
-    }
-
-    private func gatherFileData() async throws -> FileData {
-        let todoDoc = try await taskFileService.readTodoFile()
-        let todoContent = MarkdownWriter.write(todoDoc)
-        let logTail = (try? await taskFileService.readLogTail(lines: 50)) ?? ""
-        return FileData(todoContent: todoContent, logTail: logTail)
+    /// Only reads the activity log now — tasks come from Things 3 directly.
+    private func gatherLogData() async -> String {
+        (try? await taskFileService.readLogTail(lines: 50)) ?? ""
     }
 
     // MARK: - Prompt Assembly
@@ -145,7 +220,7 @@ actor BriefingEngine {
         scope: BriefingScope,
         calendar: CalendarData,
         tasks: [BriefingTask],
-        files: FileData
+        logTail: String
     ) -> String {
         // Load the template
         var template: String
@@ -192,28 +267,81 @@ actor BriefingEngine {
             with: calendar.freeWindows.isEmpty ? "None identified" : formatFreeWindows(calendar.freeWindows)
         )
 
-        // todo.md content
+        // Things 3 tasks — live from the app, grouped by list
         template = template.replacingOccurrences(
-            of: "{{TODO_MD}}",
-            with: files.todoContent
+            of: "{{THINGS3_TASKS}}",
+            with: tasks.isEmpty ? "No tasks (Things 3 may not be running)" : formatTasks(tasks)
         )
 
-        // Sync diff (placeholder — will be populated when sync runs before briefing)
-        template = template.replacingOccurrences(
-            of: "{{SYNC_DIFF}}",
-            with: "Sync not run for this briefing."
-        )
-
-        // Recent log
+        // Recent activity log
         template = template.replacingOccurrences(
             of: "{{RECENT_LOG}}",
-            with: files.logTail.isEmpty ? "No recent log entries." : files.logTail
+            with: logTail.isEmpty ? "No recent log entries." : logTail
         )
 
         return template
     }
 
     // MARK: - Formatters
+
+    private func formatTasks(_ tasks: [BriefingTask]) -> String {
+        var lines: [String] = []
+        let listOrder: [TaskList] = [.today, .inbox, .upcoming, .anytime, .someday]
+
+        for list in listOrder {
+            let listTasks = tasks.filter { $0.list == list && !$0.isCompleted }
+            guard !listTasks.isEmpty else { continue }
+
+            lines.append("**\(list.rawValue)** (\(listTasks.count) tasks)")
+
+            // Group by project
+            let withProject = listTasks.filter { $0.project != nil }
+            let withoutProject = listTasks.filter { $0.project == nil }
+
+            for task in withoutProject {
+                lines.append(formatSingleTask(task))
+            }
+
+            let byProject = Dictionary(grouping: withProject) { $0.project! }
+            for projectName in byProject.keys.sorted() {
+                lines.append("  *\(projectName):*")
+                for task in byProject[projectName]! {
+                    lines.append(formatSingleTask(task, indent: true))
+                }
+            }
+            lines.append("")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func formatSingleTask(_ task: BriefingTask, indent: Bool = false) -> String {
+        let prefix = indent ? "    - " : "- "
+        var line = prefix + task.name
+        var meta: [String] = []
+        if let due = task.dueDate {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "EEE M/d"
+            meta.append("due \(fmt.string(from: due))")
+        }
+        if task.isOverdue {
+            meta.append("\(task.daysOverdue)d overdue")
+        }
+        if let notes = task.notes, !notes.isEmpty {
+            // Include first line of notes for context
+            let firstLine = notes.components(separatedBy: "\n").first ?? ""
+            if !firstLine.isEmpty {
+                meta.append("notes: \(firstLine)")
+            }
+        }
+        if !task.tags.isEmpty {
+            meta.append("tags: \(task.tags.joined(separator: ", "))")
+        }
+        if !meta.isEmpty {
+            line += " *(\(meta.joined(separator: "; ")))*"
+        }
+        return line
+    }
 
     private func formatEvents(_ events: [CalendarEvent]) -> String {
         if events.isEmpty { return "No events" }
@@ -278,8 +406,8 @@ actor BriefingEngine {
         Conflicts: {{CONFLICTS}}
         Free windows: {{FREE_WINDOWS}}
 
-        Current tasks (todo.md):
-        {{TODO_MD}}
+        Current tasks (from Things 3):
+        {{THINGS3_TASKS}}
 
         Recent activity:
         {{RECENT_LOG}}

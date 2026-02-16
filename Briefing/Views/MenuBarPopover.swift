@@ -585,7 +585,6 @@ struct MenuBarPopover: View {
 
         let service = ClaudeAPIService()
         let things = thingsService
-        let fileService = TaskFileService(settings: settings)
         let system = buildChatSystemPrompt()
         let tools = Self.chatTools
         var history = chatHistory
@@ -620,8 +619,7 @@ struct MenuBarPopover: View {
                             let result = await Self.executeTool(
                                 name: toolUse.name,
                                 input: toolUse.input,
-                                thingsService: things,
-                                taskFileService: fileService
+                                thingsService: things
                             )
                             toolResults.append([
                                 "type": "tool_result",
@@ -738,8 +736,7 @@ struct MenuBarPopover: View {
     static func executeTool(
         name: String,
         input: [String: Any],
-        thingsService: ThingsService,
-        taskFileService: TaskFileService
+        thingsService: ThingsService
     ) async -> String {
         switch name {
         case "add_task":
@@ -772,19 +769,6 @@ struct MenuBarPopover: View {
                     return "Could not find task named '\(taskName)'"
                 }
                 try await thingsService.completeTask(id: task.id)
-
-                // Also mark the task complete in todo.md so the file
-                // stays in sync with Things 3. Without this, the next
-                // briefing prompt would still include the task from the file.
-                do {
-                    var doc = try await taskFileService.readTodoFile()
-                    MarkdownWriter.completeTask(named: task.name, in: &doc)
-                    try await taskFileService.writeTodoFile(doc)
-                } catch {
-                    // Non-fatal — Things 3 is the source of truth
-                    return "Task '\(task.name)' completed in Things 3 (todo.md update failed: \(error.localizedDescription))"
-                }
-
                 return "Task '\(task.name)' marked as complete."
             } catch {
                 return "Error completing task: \(error.localizedDescription)"

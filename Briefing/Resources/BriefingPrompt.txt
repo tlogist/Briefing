@@ -27,15 +27,13 @@ You are a daily briefing assistant for Michael Ammaturo. Produce a concise, acti
 ### Free Windows for Deep Work (45+ min)
 {{FREE_WINDOWS}}
 
-## Current Tasks (from todo.md)
+## Current Tasks (from Things 3)
 
-{{TODO_MD}}
+Things 3 is the single source of truth for tasks. The data below is live from the app.
 
-## Things 3 Sync Diff
+{{THINGS3_TASKS}}
 
-{{SYNC_DIFF}}
-
-## Recent Activity (from todo-log.md)
+## Recent Activity Log
 
 {{RECENT_LOG}}
 

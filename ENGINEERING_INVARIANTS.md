@@ -24,15 +24,22 @@
   work calendar events.
 - **Free windows must be ≥45 minutes** to be flagged as useful for deep work.
 
-## todo.md Format
+## Task Data Flow
 
-- **Section order matters.** The parser must preserve the exact section order from the
-  original file. Sections are identified by emoji prefixes (🔴, 📋, 🟠, 🟡, 🔵, ✅).
-- **Unmodified sections must round-trip verbatim.** If a section wasn't touched during
-  sync, write it back character-for-character. This prevents spurious diffs in iCloud Drive.
-- **Project sub-headings (### level) exist** under both `## 📋 Projects` and `## 🔵 Someday`.
-  The parser must handle nested project → task relationships.
-- **Horizontal rules (`---`) separate sections.** They are structural, not decorative.
+- **Things 3 is the single source of truth for tasks.** The briefing prompt is populated
+  directly from live Things 3 data via JXA — never from todo.md.
+- **todo.md is a one-way export.** After each briefing generation, a snapshot of Things 3
+  tasks is written to todo.md as a human-readable archive. This file is never read back
+  into the briefing prompt.
+- **todo-log.md is still read** for recent activity context in the briefing prompt.
+- **MarkdownParser/Writer still exist** for legacy support and the export format, but
+  they are no longer in the critical path for briefing generation.
+
+## todo.md Format (Export)
+
+- Sections are grouped by Things 3 list (Today, Inbox, Upcoming, Anytime, Someday).
+- Project sub-headings (### level) group tasks within each list section.
+- The file header shows the export timestamp and a "do not edit" notice.
 
 ## iCloud Drive
 
