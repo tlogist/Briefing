@@ -143,23 +143,61 @@ struct MenuBarPopover: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Collapse conflicts: if one event conflicts with 3+ others,
+    /// show a single summary line instead of listing every pair.
     private var conflictsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Conflicts", systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.orange)
 
-            ForEach(conflicts) { conflict in
+            ForEach(collapsedConflicts, id: \.self) { line in
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.left.arrow.right")
                         .font(.caption2)
                         .foregroundStyle(.orange)
-                    Text("\(conflict.event1.title) vs \(conflict.event2.title)")
+                    Text(line)
                         .font(.caption)
                         .lineLimit(1)
                 }
             }
         }
+    }
+
+    /// Build display lines from conflict pairs, collapsing when one event
+    /// appears in many conflicts (e.g., "Holiday vs 10 other events").
+    private var collapsedConflicts: [String] {
+        // Count how many times each event title appears in any conflict
+        var counts: [String: Int] = [:]
+        for c in conflicts {
+            counts[c.event1.title, default: 0] += 1
+            counts[c.event2.title, default: 0] += 1
+        }
+
+        // Events that appear in 3+ conflicts get collapsed
+        let threshold = 3
+        let collapsed = Set(counts.filter { $0.value >= threshold }.keys)
+
+        // Track which collapsed events we've already emitted a summary for
+        var emitted = Set<String>()
+        var lines: [String] = []
+
+        for c in conflicts {
+            let e1Collapsed = collapsed.contains(c.event1.title)
+            let e2Collapsed = collapsed.contains(c.event2.title)
+
+            if e1Collapsed && !emitted.contains(c.event1.title) {
+                lines.append("\(c.event1.title) conflicts with \(counts[c.event1.title]!) other events")
+                emitted.insert(c.event1.title)
+            } else if e2Collapsed && !emitted.contains(c.event2.title) {
+                lines.append("\(c.event2.title) conflicts with \(counts[c.event2.title]!) other events")
+                emitted.insert(c.event2.title)
+            } else if !e1Collapsed && !e2Collapsed {
+                // Neither is collapsed — show the normal pair
+                lines.append("\(c.event1.title) vs \(c.event2.title)")
+            }
+        }
+        return lines
     }
 
     private var eventsSection: some View {
@@ -384,8 +422,8 @@ struct MenuBarPopover: View {
     private func loadCalendar() async {
         do {
             let allEvents = try await calendarService.fetchTodayEvents()
-            michaelEvents = allEvents.filter { $0.owner == .michael }
-            nooshEvents = allEvents.filter { $0.owner == .noosh }
+            michaelEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .michael })
+            nooshEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .noosh })
             conflicts = await calendarService.detectConflicts(in: allEvents)
             freeWindows = await calendarService.findFreeWindows(
                 in: allEvents,
@@ -394,6 +432,38 @@ struct MenuBarPopover: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Deduplicate all-day events with the same title on the same day.
+    /// Multiple calendars often have the same holiday — keep one and note the source.
+    /// Timed events are always kept as-is.
+    private func deduplicateAllDayEvents(_ events: [CalendarEvent]) -> [CalendarEvent] {
+        let timed = events.filter { !$0.isAllDay }
+        let allDay = events.filter { $0.isAllDay }
+
+        // Group all-day events by normalized title + day
+        var seen = Set<String>()
+        var dedupedAllDay: [CalendarEvent] = []
+
+        for event in allDay {
+            let key = normalizeTitle(event.title)
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            dedupedAllDay.append(event)
+        }
+
+        return dedupedAllDay + timed
+    }
+
+    /// Normalize a title for dedup: lowercase, strip punctuation/apostrophes.
+    /// "Presidents' Day" and "President's Day" both become "presidents day".
+    private func normalizeTitle(_ title: String) -> String {
+        title.lowercased()
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: "'", with: "")
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     private func loadTasks() async {

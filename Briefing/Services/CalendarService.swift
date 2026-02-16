@@ -72,11 +72,15 @@ actor CalendarService {
 
     // MARK: - Conflict Detection
 
-    /// Find pairs of non-all-day events that overlap in time.
-    /// Only considers Michael's events — Noosh's schedule doesn't create conflicts.
+    /// Find pairs of events that overlap in time.
+    /// Excludes all-day events, Noosh's events, and holiday calendars.
     func detectConflicts(in events: [CalendarEvent]) -> [ConflictPair] {
-        // Filter to Michael's timed events only
-        let timed = events.filter { !$0.isAllDay && $0.owner == .michael }
+        // Filter to Michael's timed events, excluding holiday/subscription calendars
+        let timed = events.filter {
+            !$0.isAllDay
+            && $0.owner == .michael
+            && !$0.calendarName.lowercased().contains("holiday")
+        }
         var conflicts: [ConflictPair] = []
 
         for i in 0..<timed.count {
