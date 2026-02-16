@@ -18,6 +18,7 @@ struct MenuBarPopover: View {
     @State private var errorMessage: String?
     @State private var now = Date()
     @State private var briefingStatus: BriefingStatus = .idle
+    @Environment(\.openSettings) private var openSettings
 
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -91,27 +92,25 @@ struct MenuBarPopover: View {
 
     private var footer: some View {
         HStack {
-            Spacer()
-            Menu {
-                Button("Settings...") {
-                    // Open the Settings window via the standard SwiftUI mechanism.
-                    // SettingsLink is macOS 14+ and opens the app's Settings scene.
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-
-                Divider()
-
-                Button("Quit Briefing") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .keyboardShortcut("q", modifiers: .command)
-            } label: {
-                Image(systemName: "gear")
+            Button(action: { NSApplication.shared.terminate(nil) }) {
+                Text("Quit")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .menuStyle(.borderlessButton)
-            .frame(width: 24)
+            .buttonStyle(.borderless)
+
+            Spacer()
+
+            Button(action: {
+                // Dismiss the popover, then open Settings and bring to front
+                NSApp.keyWindow?.close()
+                openSettings()
+                NSApp.activate(ignoringOtherApps: true)
+            }) {
+                Label("Settings", systemImage: "gear")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
