@@ -183,6 +183,14 @@ actor BriefingEngine {
             allEvents = try await calendarService.fetchTodayEventsWithCache(
                 cacheDirectoryPath: cachePath
             )
+        case .tomorrow:
+            // Fetch only tomorrow's events (start-of-tomorrow to end-of-tomorrow)
+            let cal = Calendar.current
+            let tomorrowStart = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date()))!
+            let tomorrowEnd = cal.date(byAdding: .day, value: 1, to: tomorrowStart)!
+            allEvents = try await calendarService.fetchEventsWithPersonalCache(
+                from: tomorrowStart, to: tomorrowEnd, cacheDirectoryPath: cachePath
+            )
         case .week:
             allEvents = try await calendarService.fetchWeekEventsWithCache(
                 daysAhead: settings.calendarDaysAhead,
@@ -318,6 +326,30 @@ actor BriefingEngine {
 
             ### 👀 Noosh Awareness
             Anything from Noosh's schedule that Michael should know about (shared logistics, overlapping commitments, etc.).
+            """
+        case .tomorrow:
+            return """
+            This briefing is specifically about TOMORROW — not today, not the full week. Focus entirely on tomorrow's schedule and priorities.
+
+            Structure your output as follows:
+
+            ### 📅 Tomorrow's Schedule
+            Summarize tomorrow's calendar. Note any important meetings, conflicts, or logistics.
+
+            ### 🎯 Tomorrow's Priorities
+            List the top 3-5 tasks Michael should focus on tomorrow, with brief reasoning for each. Consider:
+            - What's time-sensitive or due soon (must-do)
+            - What has momentum or in-person opportunity (should-do)
+            - What preparation is needed tonight or first thing in the morning
+
+            ### ⏳ Waiting On
+            Items that are blocked on other people. Note who and what the next follow-up should be.
+
+            ### 📊 Capacity Assessment
+            Given tomorrow's calendar, how many tasks can realistically get done? Any specific recommendations on when to tackle what based on free windows.
+
+            ### 👀 Noosh Awareness
+            Anything from Noosh's schedule tomorrow that Michael should know about (shared logistics, overlapping commitments, etc.).
             """
         case .week:
             return """

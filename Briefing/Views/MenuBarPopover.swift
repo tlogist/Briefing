@@ -79,7 +79,7 @@ struct MenuBarPopover: View {
         .frame(width: 360, height: 520)
         .task {
             // Restore any cached briefings from disk
-            for scope in [BriefingScope.today, .week] {
+            for scope in [BriefingScope.today, .tomorrow, .week] {
                 if let cached = BriefingCache.load(for: scope) {
                     briefingCache[scope] = cached
                 }
@@ -356,13 +356,19 @@ struct MenuBarPopover: View {
                 let hasKey = KeychainService.load(key: KeychainService.Key.anthropicAPIKey) != nil
                 HStack(spacing: 8) {
                     Button(action: { showOrGenerate(scope: .today) }) {
-                        Label("Today's Briefing", systemImage: "sparkles")
+                        Label("Today", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!hasKey)
+
+                    Button(action: { showOrGenerate(scope: .tomorrow) }) {
+                        Label("Tomorrow", systemImage: "sparkles")
                     }
                     .buttonStyle(.bordered)
                     .disabled(!hasKey)
 
                     Button(action: { showOrGenerate(scope: .week) }) {
-                        Label("Week's Briefing", systemImage: "sparkles")
+                        Label("Week", systemImage: "sparkles")
                     }
                     .buttonStyle(.bordered)
                     .disabled(!hasKey)
@@ -427,6 +433,14 @@ struct MenuBarPopover: View {
                         }
                         .buttonStyle(.borderless)
 
+                        Button(action: { showOrGenerate(scope: .tomorrow) }) {
+                            Text("Tomorrow")
+                                .font(.caption)
+                                .fontWeight(currentScope == .tomorrow ? .semibold : .regular)
+                                .foregroundStyle(currentScope == .tomorrow ? .primary : .secondary)
+                        }
+                        .buttonStyle(.borderless)
+
                         Button(action: { showOrGenerate(scope: .week) }) {
                             Text("Week")
                                 .font(.caption)
@@ -462,6 +476,9 @@ struct MenuBarPopover: View {
                         Button("Retry Today") { generateBriefing(scope: .today) }
                             .buttonStyle(.borderless)
                             .font(.caption)
+                        Button("Retry Tomorrow") { generateBriefing(scope: .tomorrow) }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
                         Button("Retry Week") { generateBriefing(scope: .week) }
                             .buttonStyle(.borderless)
                             .font(.caption)
@@ -482,8 +499,9 @@ struct MenuBarPopover: View {
         let dateStr = DateFormatting.dateReadable.string(from: result.generatedAt)
         let title: String
         switch scope {
-        case .today: title = "Briefing - \(dateStr)"
-        case .week:  title = "Briefing - Week of \(dateStr)"
+        case .today:    title = "Briefing - \(dateStr)"
+        case .tomorrow: title = "Briefing - Tomorrow \(dateStr)"
+        case .week:     title = "Briefing - Week of \(dateStr)"
         }
 
         // Build an attributed string from the markdown content.
@@ -857,7 +875,7 @@ struct MenuBarPopover: View {
         // Fetch all tasks for a full fingerprint (briefing uses all tasks, not just today's)
         let currentFingerprint = BriefingResult.fingerprint(from: todayTasks)
 
-        for scope in [BriefingScope.today, .week] {
+        for scope in [BriefingScope.today, .tomorrow, .week] {
             if let cached = briefingCache[scope],
                !cached.taskFingerprint.isEmpty,
                cached.taskFingerprint != currentFingerprint {

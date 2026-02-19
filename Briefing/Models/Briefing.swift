@@ -65,11 +65,13 @@ struct BriefingResult: Identifiable, Codable {
 // Whether to generate a today-only or week-ahead briefing
 enum BriefingScope: String, Hashable, Codable {
     case today
+    case tomorrow
     case week
 
     var label: String {
         switch self {
         case .today: return "Today's Briefing"
+        case .tomorrow: return "Tomorrow's Briefing"
         case .week: return "Week's Briefing"
         }
     }
@@ -77,6 +79,7 @@ enum BriefingScope: String, Hashable, Codable {
     var calendarHeading: String {
         switch self {
         case .today: return "Calendar Events (Today)"
+        case .tomorrow: return "Calendar Events (Tomorrow)"
         case .week: return "Calendar Events (Next 7 Days)"
         }
     }
