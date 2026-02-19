@@ -105,8 +105,34 @@
   (Inbox, Today, Upcoming, Anytime, Someday) so the work Mac can use the full
   set for briefing generation. The popover filters to Today at read time.
 
+## Briefing Cache (iCloud Drive)
+
+- **Briefings are cached to iCloud Drive, not UserDefaults.** Files live at
+  `{taskDirectoryPath}/briefing-{scope}.json` (e.g., `briefing-today.json`,
+  `briefing-week.json`). Generate on one Mac, the other picks it up via
+  iCloud sync — no need to re-call Claude on each machine.
+- **Never delete the shared cache file for staleness.** The iCloud Drive file
+  is a shared resource between machines. One Mac must not delete what the other
+  wrote just because its local task data differs. `invalidateStaleBriefings()`
+  only clears the **in-memory** `briefingCache` dictionary — the file on disk
+  stays and gets naturally overwritten when a new briefing is generated.
+- **Load from disk AFTER invalidation, not before.** In `loadAll()`, the order
+  is: (1) fetch fresh calendar + tasks, (2) `invalidateStaleBriefings()` clears
+  stale in-memory entries, (3) reload from iCloud Drive files to fill empty slots.
+  If you load before invalidation, the freshly-loaded briefing gets immediately
+  nuked because the other Mac's task fingerprint doesn't match local tasks.
+- **`showOrGenerate` checks in-memory cache first.** If a briefing is in
+  `briefingCache[scope]`, it's shown instantly. Otherwise Claude is called.
+  The iCloud reload in `loadAll()` is what populates in-memory from disk.
+
 ## Claude API
 
 - **Default model: claude-sonnet-4-5-20250929.** Configurable in settings.
-- **API key stored in macOS Keychain** via Security framework. Never write to disk or UserDefaults.
+- **API key stored in UserDefaults** (via `KeychainService` wrapper). Currently uses
+  UserDefaults because ad-hoc signing triggers Keychain access prompts. Switch to
+  real Keychain (Security framework) when the app is properly code-signed.
 - **Cost per briefing: ~$0.06-0.09.** Acceptable for daily use.
+- **180-second request timeout.** The non-streaming API sends zero bytes until
+  the full response is generated. `URLSession.timeoutInterval` is an idle-between-
+  packets timeout, so the entire generation time counts as "idle." Weekly briefings
+  with ~10K input tokens routinely need 50-60s; 180s provides safe margin.
