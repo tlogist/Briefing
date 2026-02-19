@@ -18,6 +18,7 @@ struct MenuBarPopover: View {
     @State private var isLoading = false
     @State private var isRefreshing = false
     @State private var errorMessage: String?
+    @State private var calendarDayOffset: Int = 0
     @State private var now = Date()
     @State private var lastRefreshed: Date?
     @State private var personalCalCachedAt: Date?   // non-nil when using cached personal events
@@ -32,6 +33,21 @@ struct MenuBarPopover: View {
     @State private var chatMessages: [ChatDisplayMessage] = []
     @State private var chatHistory: [[String: Any]] = []
     @State private var isChatting = false
+
+    /// Dynamic heading for the events section based on calendarDayOffset
+    private var scheduleHeading: String {
+        switch calendarDayOffset {
+        case 0:  return "Today's Schedule"
+        case 1:  return "Tomorrow's Schedule"
+        case -1: return "Yesterday's Schedule"
+        default:
+            let cal = Calendar.current
+            let target = cal.date(byAdding: .day, value: calendarDayOffset, to: cal.startOfDay(for: Date()))!
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE, MMM d"
+            return formatter.string(from: target)
+        }
+    }
 
     // Tick every 60 seconds so past-event greying stays current
     private let minuteTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
@@ -261,11 +277,30 @@ struct MenuBarPopover: View {
 
     private var eventsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Today's Schedule")
-                .font(.subheadline.weight(.semibold))
+            HStack {
+                Text(scheduleHeading)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button(action: {
+                    calendarDayOffset -= 1
+                    Task { await loadCalendar() }
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                Button(action: {
+                    calendarDayOffset += 1
+                    Task { await loadCalendar() }
+                }) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+            }
 
             if michaelEvents.isEmpty {
-                Text("No events today")
+                Text("No events")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
@@ -825,6 +860,7 @@ struct MenuBarPopover: View {
     /// in the background. Only shows a loading spinner on first launch with
     /// no cache at all.
     private func loadAll() async {
+        calendarDayOffset = 0
         errorMessage = nil
 
         // Restore from cache first — popover appears instantly with stale data
@@ -893,8 +929,12 @@ struct MenuBarPopover: View {
 
     private func loadCalendar() async {
         do {
-            let allEvents = try await calendarService.fetchTodayEventsWithCache(
-                cacheDirectoryPath: settings.taskDirectoryPath
+            // Compute date range for the selected day (today + offset)
+            let cal = Calendar.current
+            let start = cal.date(byAdding: .day, value: calendarDayOffset, to: cal.startOfDay(for: Date()))!
+            let end = cal.date(byAdding: .day, value: 1, to: start)!
+            let allEvents = try await calendarService.fetchEventsWithPersonalCache(
+                from: start, to: end, cacheDirectoryPath: settings.taskDirectoryPath
             )
             michaelEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .michael })
             nooshEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .noosh })

@@ -92,7 +92,11 @@ actor ClaudeAPIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiVersion, forHTTPHeaderField: "anthropic-version")
         request.setValue(auth.value, forHTTPHeaderField: auth.name)
-        request.timeoutInterval = 60
+        // Non-streaming: the API sends nothing until the full response is generated.
+        // URLSession treats timeoutInterval as idle-between-packets, so the entire
+        // generation time counts as "idle." Weekly briefings routinely need 50-60s;
+        // 180s provides safe margin for heavy weeks or slow API conditions.
+        request.timeoutInterval = 180
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
