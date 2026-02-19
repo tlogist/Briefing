@@ -41,25 +41,4 @@ Things 3 is the single source of truth for tasks. The data below is live from th
 
 ## Produce Your Briefing
 
-Structure your output as follows:
-
-### 📅 Calendar at a Glance
-Summarize today's schedule. Note any important meetings, conflicts, or logistics.
-
-### 🎯 Top Priorities
-List the top 3-5 tasks Michael should focus on today, with brief reasoning for each. Consider:
-- What's time-sensitive or due this week (must-do)
-- What has momentum or in-person opportunity (should-do)
-- What's been neglected and needs attention
-
-### ⏳ Waiting On
-Items that are blocked on other people. Note who and what the next follow-up should be.
-
-### 🚩 Stale / Overdue
-Tasks that are overdue or haven't moved in a while. Be direct about what should be dropped, delegated, or rescheduled.
-
-### 📊 Capacity Assessment
-Given today's calendar, how many tasks can realistically get done? What's most at risk of slipping this week? Any specific recommendations on when to tackle what (e.g., "use the 2-hour gap after lunch for the KensieMae doc").
-
-### 👀 Noosh Awareness
-Anything from Noosh's schedule that Michael should know about (shared logistics, overlapping commitments, etc.).
+{{SCOPE_INSTRUCTIONS}}

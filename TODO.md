@@ -26,7 +26,7 @@
 - [ ] Get Things 3 automation working on work Mac under Tahoe (JXA fails with -1701; may need new Apple Events permissions model)
 
 ## Briefing Generation
-- [ ] Fix Weekly briefing — currently generates today's briefing instead of a proper week view
+- [x] Fix Weekly briefing — currently generates today's briefing instead of a proper week view
 - [ ] Add "Tomorrow" button to generate a briefing for the next day
 
 ## Polish

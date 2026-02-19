@@ -280,7 +280,79 @@ actor BriefingEngine {
             with: logTail.isEmpty ? "No recent log entries." : logTail
         )
 
+        // Scope-specific output instructions
+        template = template.replacingOccurrences(
+            of: "{{SCOPE_INSTRUCTIONS}}",
+            with: scopeInstructions(for: scope)
+        )
+
         return template
+    }
+
+    /// Output instructions tailored to the briefing scope.
+    /// Today's briefing focuses on the single day; week's briefing gives a
+    /// day-by-day overview with strategic planning across the full week.
+    private func scopeInstructions(for scope: BriefingScope) -> String {
+        switch scope {
+        case .today:
+            return """
+            Structure your output as follows:
+
+            ### 📅 Calendar at a Glance
+            Summarize today's schedule. Note any important meetings, conflicts, or logistics.
+
+            ### 🎯 Top Priorities
+            List the top 3-5 tasks Michael should focus on today, with brief reasoning for each. Consider:
+            - What's time-sensitive or due this week (must-do)
+            - What has momentum or in-person opportunity (should-do)
+            - What's been neglected and needs attention
+
+            ### ⏳ Waiting On
+            Items that are blocked on other people. Note who and what the next follow-up should be.
+
+            ### 🚩 Stale / Overdue
+            Tasks that are overdue or haven't moved in a while. Be direct about what should be dropped, delegated, or rescheduled.
+
+            ### 📊 Capacity Assessment
+            Given today's calendar, how many tasks can realistically get done? What's most at risk of slipping this week? Any specific recommendations on when to tackle what (e.g., "use the 2-hour gap after lunch for the KensieMae doc").
+
+            ### 👀 Noosh Awareness
+            Anything from Noosh's schedule that Michael should know about (shared logistics, overlapping commitments, etc.).
+            """
+        case .week:
+            return """
+            This is a WEEKLY briefing covering the next 7 days. Do NOT focus only on today — analyze the full week.
+
+            Structure your output as follows:
+
+            ### 📅 Week Overview
+            A 2-3 sentence summary of the week: how heavy is the calendar, which days are busiest, which have the most room for deep work.
+
+            ### 📆 Day-by-Day Breakdown
+            For each day with events, give a brief summary:
+            - Key meetings and commitments
+            - Available free windows
+            - Suggested tasks to slot into open time
+
+            ### 🎯 Week Priorities
+            The top 5-7 tasks Michael should aim to complete this week, mapped to specific days when possible. Consider:
+            - Hard deadlines and due dates
+            - Which days have capacity for which tasks
+            - Tasks that need deep focus vs. quick wins
+
+            ### ⏳ Waiting On
+            Items blocked on other people. Note who, what's needed, and suggested follow-up day.
+
+            ### 🚩 Stale / Overdue
+            Tasks that are overdue or slipping. Be direct about what should be dropped, delegated, or rescheduled this week.
+
+            ### 📊 Week Capacity
+            Overall capacity assessment: how much non-meeting time exists this week? Which days are best for deep work? What's most at risk of not getting done?
+
+            ### 👀 Noosh Awareness
+            Anything from Noosh's schedule this week that Michael should know about (shared logistics, overlapping commitments, etc.).
+            """
+        }
     }
 
     // MARK: - Formatters
@@ -413,12 +485,7 @@ actor BriefingEngine {
         Recent activity:
         {{RECENT_LOG}}
 
-        Please produce a concise daily briefing covering:
-        1. Calendar at a glance
-        2. Top 3-5 priorities for today
-        3. Waiting-on items
-        4. Stale/overdue flags
-        5. Capacity assessment given today's calendar
+        {{SCOPE_INSTRUCTIONS}}
         """
     }
 }
