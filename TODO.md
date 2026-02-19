@@ -25,6 +25,10 @@
 - [ ] Share generated briefings (today + week) via iCloud Drive so they don't need to be regenerated on each computer
 - [ ] Get Things 3 automation working on work Mac under Tahoe (JXA fails with -1701; may need new Apple Events permissions model)
 
+## Briefing Generation
+- [ ] Fix Weekly briefing — currently generates today's briefing instead of a proper week view
+- [ ] Add "Tomorrow" button to generate a briefing for the next day
+
 ## Polish
 - [ ] Graceful error handling: calendar denied, Things 3 not running, network errors, missing config path
 - [ ] Visual conflict/free-window indicators in calendar timeline
