@@ -94,12 +94,6 @@ struct MenuBarPopover: View {
         }
         .frame(width: 360, height: 520)
         .task {
-            // Restore any cached briefings from disk
-            for scope in [BriefingScope.today, .tomorrow, .week] {
-                if let cached = BriefingCache.load(for: scope) {
-                    briefingCache[scope] = cached
-                }
-            }
             await loadAll()
         }
         .onReceive(minuteTimer) { _ in
@@ -606,7 +600,7 @@ struct MenuBarPopover: View {
                 }
                 await MainActor.run {
                     briefingCache[scope] = result
-                    BriefingCache.save(result, for: scope)
+                    BriefingCache.save(result, for: scope, directoryPath: settings.taskDirectoryPath)
                 }
             } catch {
                 await MainActor.run {
@@ -902,22 +896,34 @@ struct MenuBarPopover: View {
         // the briefing was generated. This prevents showing stale briefings
         // that mention tasks the user has already completed.
         invalidateStaleBriefings()
+
+        // Reload briefing caches from iCloud Drive AFTER invalidation.
+        // Order matters: invalidate first (clears stale in-memory briefings
+        // based on task fingerprints), then load from disk (picks up fresh
+        // briefings generated on the other Mac).
+        for scope in [BriefingScope.today, .tomorrow, .week] {
+            if briefingCache[scope] == nil,
+               let cached = BriefingCache.load(for: scope, directoryPath: settings.taskDirectoryPath) {
+                briefingCache[scope] = cached
+            }
+        }
     }
 
     /// Compare current task data against what each cached briefing was
     /// generated with. If tasks have changed (completed, added, etc.),
-    /// clear the stale briefing from both in-memory and disk cache.
+    /// clear the stale briefing from the in-memory cache.
+    /// Does NOT delete the iCloud Drive file — that's a shared resource
+    /// and the other Mac may still need it. The file gets overwritten
+    /// naturally when a new briefing is generated for that scope.
     private func invalidateStaleBriefings() {
-        // Fetch all tasks for a full fingerprint (briefing uses all tasks, not just today's)
         let currentFingerprint = BriefingResult.fingerprint(from: todayTasks)
 
         for scope in [BriefingScope.today, .tomorrow, .week] {
             if let cached = briefingCache[scope],
                !cached.taskFingerprint.isEmpty,
                cached.taskFingerprint != currentFingerprint {
-                // Tasks changed — this briefing is stale
+                // Tasks changed — this briefing is stale for this machine
                 briefingCache.removeValue(forKey: scope)
-                BriefingCache.remove(for: scope)
 
                 // If we're currently displaying this stale briefing, reset to idle
                 if case .complete(let shown) = briefingStatus, shown.id == cached.id {

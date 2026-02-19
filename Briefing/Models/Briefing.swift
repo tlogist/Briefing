@@ -108,24 +108,28 @@ enum BriefingStatus: Equatable {
 
 // MARK: - Persistent Cache
 
-/// Persists the most recent briefing result per scope to UserDefaults
-/// so cached briefings survive app restarts.
+/// Persists the most recent briefing result per scope to the shared iCloud Drive
+/// directory so cached briefings are available on both personal and work Macs.
+/// Generate once, read everywhere — no need to re-call Claude on each machine.
 enum BriefingCache {
-    private static let prefix = "com.ammaturo.Briefing.cache."
-
-    static func save(_ result: BriefingResult, for scope: BriefingScope) {
-        guard let data = try? JSONEncoder().encode(result) else { return }
-        UserDefaults.standard.set(data, forKey: prefix + scope.rawValue)
+    private static func fileURL(for scope: BriefingScope, in directoryPath: String) -> URL {
+        URL(fileURLWithPath: directoryPath)
+            .appendingPathComponent("briefing-\(scope.rawValue).json")
     }
 
-    static func load(for scope: BriefingScope) -> BriefingResult? {
-        guard let data = UserDefaults.standard.data(forKey: prefix + scope.rawValue) else {
+    static func save(_ result: BriefingResult, for scope: BriefingScope, directoryPath: String) {
+        guard let data = try? JSONEncoder().encode(result) else { return }
+        try? data.write(to: fileURL(for: scope, in: directoryPath), options: .atomic)
+    }
+
+    static func load(for scope: BriefingScope, directoryPath: String) -> BriefingResult? {
+        guard let data = try? Data(contentsOf: fileURL(for: scope, in: directoryPath)) else {
             return nil
         }
         return try? JSONDecoder().decode(BriefingResult.self, from: data)
     }
 
-    static func remove(for scope: BriefingScope) {
-        UserDefaults.standard.removeObject(forKey: prefix + scope.rawValue)
+    static func remove(for scope: BriefingScope, directoryPath: String) {
+        try? FileManager.default.removeItem(at: fileURL(for: scope, in: directoryPath))
     }
 }
