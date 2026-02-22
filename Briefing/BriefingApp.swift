@@ -5,18 +5,39 @@ import SwiftUI
 // keeps the app out of the Dock — it lives exclusively in the menu bar.
 @main
 struct BriefingApp: App {
-    // Shared services — created once, passed to views that need them
-    @State private var settings = AppSettings()
-    @State private var calendarService = CalendarService()
-    @State private var thingsService = ThingsService()
-    @State private var scheduler: BriefingScheduler?
+    // Shared services — created once, passed to views that need them.
+    // All initialized in init() so the scheduler can start immediately
+    // at app launch, not lazily when the popover first opens.
+    @State private var settings: AppSettings
+    @State private var calendarService: CalendarService
+    @State private var thingsService: ThingsService
+    @State private var scheduler: BriefingScheduler
 
-    // Request calendar permission at launch so the system dialog appears
-    // before the popover — avoids the popover blocking the permission alert.
     init() {
-        let service = calendarService
+        let settings = AppSettings()
+        let calendarService = CalendarService()
+        let thingsService = ThingsService()
+
+        _settings = State(initialValue: settings)
+        _calendarService = State(initialValue: calendarService)
+        _thingsService = State(initialValue: thingsService)
+
+        // Start the scheduler eagerly — MenuBarExtra .window style creates
+        // the content view lazily (only on first click), so a .task modifier
+        // on the popover would miss any schedule that fires before the user
+        // opens the menu bar icon.
+        let scheduler = BriefingScheduler(
+            settings: settings,
+            calendarService: calendarService,
+            thingsService: thingsService
+        )
+        scheduler.start()
+        _scheduler = State(initialValue: scheduler)
+
+        // Request calendar permission early so the system dialog appears
+        // before the popover — avoids the popover blocking the permission alert.
         Task {
-            try? await service.requestAccess()
+            try? await calendarService.requestAccess()
         }
     }
 
@@ -42,20 +63,6 @@ struct BriefingApp: App {
                 briefingEngine: engine,
                 scheduler: scheduler
             )
-            .task {
-                // Start the scheduler once when the app launches.
-                // Menu bar apps stay alive indefinitely so this runs for
-                // the entire app lifetime.
-                if scheduler == nil {
-                    let s = BriefingScheduler(
-                        settings: settings,
-                        calendarService: calendarService,
-                        thingsService: thingsService
-                    )
-                    s.start()
-                    scheduler = s
-                }
-            }
         }
         .menuBarExtraStyle(.window)
     }

@@ -162,6 +162,11 @@
 - **Block-based Timer API.** Uses `Timer(fire:interval:repeats:block:)` instead
   of `@objc` selector-based timers. This avoids requiring `NSObject` inheritance,
   which would conflict with the `@Observable` macro.
+- **Scheduler must start in `BriefingApp.init()`, not in a `.task` modifier.**
+  `MenuBarExtra` with `.window` style creates its content view lazily — only
+  when the user first clicks the menu bar icon. A `.task` on the popover
+  would miss any schedule that fires before the first click. The scheduler
+  is created eagerly in `init()` using `State(initialValue:)`.
 - **Settings change → manual reschedule.** The SettingsView uses `.onChange`
   modifiers to call `scheduler.rescheduleDaily()` / `rescheduleWeekly()` when
   the user changes schedule settings. The scheduler does not auto-observe
