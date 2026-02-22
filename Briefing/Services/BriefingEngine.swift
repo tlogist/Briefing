@@ -306,6 +306,8 @@ actor BriefingEngine {
             return """
             IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
 
+            Title the briefing: "# Daily Briefing — [Day of Week], [Month] [Day], [Year]"
+
             Structure your output as follows:
 
             ### 📅 Calendar at a Glance
@@ -335,6 +337,8 @@ actor BriefingEngine {
 
             IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
 
+            Title the briefing: "# Tomorrow's Briefing — [Day of Week], [Month] [Day], [Year]"
+
             Structure your output as follows:
 
             ### 📅 Tomorrow's Schedule
@@ -360,6 +364,8 @@ actor BriefingEngine {
             This is a WEEKLY briefing covering the next 7 days. Do NOT focus only on today — analyze the full week.
 
             IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
+
+            Title the briefing: "# Your Week Ahead — Week of [Month] [Day], [Year]"
 
             Structure your output as follows:
 
