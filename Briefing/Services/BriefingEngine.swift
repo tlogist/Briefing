@@ -304,10 +304,12 @@ actor BriefingEngine {
         switch scope {
         case .today:
             return """
+            IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
+
             Structure your output as follows:
 
             ### 📅 Calendar at a Glance
-            Summarize today's schedule. Note any important meetings, conflicts, or logistics.
+            Summarize today's schedule as a bullet list (one bullet per event with time and title). Note any important meetings, conflicts, or logistics.
 
             ### 🎯 Top Priorities
             List the top 3-5 tasks Michael should focus on today, with brief reasoning for each. Consider:
@@ -316,10 +318,10 @@ actor BriefingEngine {
             - What's been neglected and needs attention
 
             ### ⏳ Waiting On
-            Items that are blocked on other people. Note who and what the next follow-up should be.
+            Items that are blocked on other people as a bullet list. Note who and what the next follow-up should be.
 
             ### 🚩 Stale / Overdue
-            Tasks that are overdue or haven't moved in a while. Be direct about what should be dropped, delegated, or rescheduled.
+            Tasks that are overdue or haven't moved in a while as a bullet list. Be direct about what should be dropped, delegated, or rescheduled.
 
             ### 📊 Capacity Assessment
             Given today's calendar, how many tasks can realistically get done? What's most at risk of slipping this week? Any specific recommendations on when to tackle what (e.g., "use the 2-hour gap after lunch for the KensieMae doc").
@@ -331,10 +333,12 @@ actor BriefingEngine {
             return """
             This briefing is specifically about TOMORROW — not today, not the full week. Focus entirely on tomorrow's schedule and priorities.
 
+            IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
+
             Structure your output as follows:
 
             ### 📅 Tomorrow's Schedule
-            Summarize tomorrow's calendar. Note any important meetings, conflicts, or logistics.
+            Summarize tomorrow's calendar as a bullet list (one bullet per event with time and title). Note any important meetings, conflicts, or logistics.
 
             ### 🎯 Tomorrow's Priorities
             List the top 3-5 tasks Michael should focus on tomorrow, with brief reasoning for each. Consider:
@@ -343,7 +347,7 @@ actor BriefingEngine {
             - What preparation is needed tonight or first thing in the morning
 
             ### ⏳ Waiting On
-            Items that are blocked on other people. Note who and what the next follow-up should be.
+            Items that are blocked on other people as a bullet list. Note who and what the next follow-up should be.
 
             ### 📊 Capacity Assessment
             Given tomorrow's calendar, how many tasks can realistically get done? Any specific recommendations on when to tackle what based on free windows.
@@ -355,13 +359,15 @@ actor BriefingEngine {
             return """
             This is a WEEKLY briefing covering the next 7 days. Do NOT focus only on today — analyze the full week.
 
+            IMPORTANT: Use bullet lists for ALL sections. Never use markdown tables — they break in the narrow display window.
+
             Structure your output as follows:
 
             ### 📅 Week Overview
             A 2-3 sentence summary of the week: how heavy is the calendar, which days are busiest, which have the most room for deep work.
 
             ### 📆 Day-by-Day Breakdown
-            For each day with events, give a brief summary:
+            For each day with events, give a brief summary as bullets:
             - Key meetings and commitments
             - Available free windows
             - Suggested tasks to slot into open time
@@ -373,10 +379,10 @@ actor BriefingEngine {
             - Tasks that need deep focus vs. quick wins
 
             ### ⏳ Waiting On
-            Items blocked on other people. Note who, what's needed, and suggested follow-up day.
+            Items blocked on other people as a bullet list. Note who, what's needed, and suggested follow-up day.
 
             ### 🚩 Stale / Overdue
-            Tasks that are overdue or slipping. Be direct about what should be dropped, delegated, or rescheduled this week.
+            Tasks that are overdue or slipping as a bullet list. Be direct about what should be dropped, delegated, or rescheduled this week.
 
             ### 📊 Week Capacity
             Overall capacity assessment: how much non-meeting time exists this week? Which days are best for deep work? What's most at risk of not getting done?
