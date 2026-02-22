@@ -23,6 +23,7 @@
 ## iCloud Drive Sync
 - [x] Cache personal calendar events (iCloud, Bendicoot, Planning Board) to iCloud Drive for work Mac
 - [x] Cache Things 3 tasks to iCloud Drive for work Mac fallback
+- [ ] Investigate Things 3 task cache duplicates on work Mac — verify tasks are correctly fetched and deduplicated before writing to iCloud cache
 - [ ] Share generated briefings (today + week) via iCloud Drive so they don't need to be regenerated on each computer
 - [ ] Get Things 3 automation working on work Mac under Tahoe (JXA fails with -1701; may need new Apple Events permissions model)
 
