@@ -44,7 +44,7 @@ actor ClaudeAPIService {
     /// Send a prompt to Claude and return the text response.
     func sendMessage(
         prompt: String,
-        model: String = "claude-sonnet-4-5-20250929",
+        model: String = "claude-sonnet-4-6",
         maxTokens: Int = 4096,
         systemPrompt: String? = nil
     ) async throws -> String {
@@ -66,7 +66,7 @@ actor ClaudeAPIService {
     func sendChat(
         messages: [[String: Any]],
         system: String? = nil,
-        model: String = "claude-sonnet-4-5-20250929",
+        model: String = "claude-sonnet-4-6",
         maxTokens: Int = 1024,
         tools: [[String: Any]]? = nil
     ) async throws -> ChatResponse {

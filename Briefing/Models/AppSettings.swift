@@ -64,7 +64,7 @@ final class AppSettings {
         let defaultPath = NSString("~/Library/Mobile Documents/com~apple~CloudDocs/To-Do Briefing")
             .expandingTildeInPath
         self.taskDirectoryPath = defaults.string(forKey: "taskDirectoryPath") ?? defaultPath
-        self.claudeModel = defaults.string(forKey: "claudeModel") ?? "claude-sonnet-4-5-20250929"
+        self.claudeModel = defaults.string(forKey: "claudeModel") ?? "claude-sonnet-4-6"
         self.minimumFreeWindowMinutes = defaults.object(forKey: "minimumFreeWindowMinutes") as? Int ?? 45
         self.calendarDaysAhead = defaults.object(forKey: "calendarDaysAhead") as? Int ?? 7
         self.useOAuth = defaults.bool(forKey: "useOAuth")

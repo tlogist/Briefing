@@ -132,7 +132,7 @@
 
 ## Claude API
 
-- **Default model: claude-sonnet-4-5-20250929.** Configurable in settings.
+- **Default model: claude-sonnet-4-6.** Configurable in settings.
 - **API key stored in UserDefaults** (via `KeychainService` wrapper). Currently uses
   UserDefaults because ad-hoc signing triggers Keychain access prompts. Switch to
   real Keychain (Security framework) when the app is properly code-signed.
