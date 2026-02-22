@@ -16,19 +16,19 @@ final class SettingsWindowController {
 
     private init() {}
 
-    func show(settings: AppSettings) {
+    func show(settings: AppSettings, scheduler: BriefingScheduler? = nil) {
         if let existing = panel, existing.isVisible {
             // Already open — just bring to front
             existing.orderFrontRegardless()
             return
         }
 
-        let settingsView = SettingsView(settings: settings)
+        let settingsView = SettingsView(settings: settings, scheduler: scheduler)
         let hostingView = NSHostingView(rootView: AnyView(settingsView))
         self.hostingView = hostingView
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 350),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 500),
             styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
             backing: .buffered,
             defer: false

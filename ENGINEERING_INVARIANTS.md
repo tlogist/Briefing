@@ -136,3 +136,28 @@
   the full response is generated. `URLSession.timeoutInterval` is an idle-between-
   packets timeout, so the entire generation time counts as "idle." Weekly briefings
   with ~10K input tokens routinely need 50-60s; 180s provides safe margin.
+
+## Scheduled Briefing Generation
+
+- **In-process Timer, not launchd/cron.** The app is a persistent menu bar app
+  (`LSUIElement=YES`) that stays running indefinitely. `BriefingScheduler` uses
+  `Timer` on the main RunLoop to fire at computed dates. This avoids the
+  complexity of launchd plists and the permission issues they bring.
+- **Two independent schedules.** Daily (generates `.today` scope) and weekly
+  (generates `.week` scope) are fully independent — each has its own Timer,
+  enable toggle, and time settings. They don't interact.
+- **Scheduler writes to disk, popover reads from disk.** `BriefingScheduler`
+  calls `BriefingEngine.generateBriefing()` and saves via `BriefingCache.save()`.
+  It does NOT update in-memory popover state. The popover's `loadAll()` reloads
+  from iCloud Drive files on every open, picking up scheduler-generated briefings.
+- **Wake-from-sleep recovery.** The scheduler records when the Mac goes to sleep
+  (`willSleepNotification`). On wake (`didWakeNotification`), it checks whether
+  either schedule's fire date fell inside the sleep window. If so, it fires
+  immediately — then reschedules for the next occurrence.
+- **Block-based Timer API.** Uses `Timer(fire:interval:repeats:block:)` instead
+  of `@objc` selector-based timers. This avoids requiring `NSObject` inheritance,
+  which would conflict with the `@Observable` macro.
+- **Settings change → manual reschedule.** The SettingsView uses `.onChange`
+  modifiers to call `scheduler.rescheduleDaily()` / `rescheduleWeekly()` when
+  the user changes schedule settings. The scheduler does not auto-observe
+  settings because `withObservationTracking` is awkward for this use case.

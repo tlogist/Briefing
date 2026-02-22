@@ -8,6 +8,7 @@ struct MenuBarPopover: View {
     let thingsService: ThingsService
     let settings: AppSettings
     let briefingEngine: BriefingEngine
+    var scheduler: BriefingScheduler?
 
     @State private var michaelEvents: [CalendarEvent] = []
     @State private var nooshEvents: [CalendarEvent] = []
@@ -173,7 +174,7 @@ struct MenuBarPopover: View {
 
                 Button(action: {
                     NSApp.keyWindow?.close()
-                    SettingsWindowController.shared.show(settings: settings)
+                    SettingsWindowController.shared.show(settings: settings, scheduler: scheduler)
                 }) {
                     Image(systemName: "gear")
                         .font(.caption)

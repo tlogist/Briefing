@@ -32,15 +32,29 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(useOAuth, forKey: "useOAuth") }
     }
 
-    // Auto-refresh schedule: enabled and time of day
-    var scheduleEnabled: Bool {
-        didSet { UserDefaults.standard.set(scheduleEnabled, forKey: "scheduleEnabled") }
+    // --- Daily schedule: generates a "today" briefing each morning ---
+    var dailyScheduleEnabled: Bool {
+        didSet { UserDefaults.standard.set(dailyScheduleEnabled, forKey: "dailyScheduleEnabled") }
     }
-    var scheduleHour: Int {
-        didSet { UserDefaults.standard.set(scheduleHour, forKey: "scheduleHour") }
+    var dailyScheduleHour: Int {
+        didSet { UserDefaults.standard.set(dailyScheduleHour, forKey: "dailyScheduleHour") }
     }
-    var scheduleMinute: Int {
-        didSet { UserDefaults.standard.set(scheduleMinute, forKey: "scheduleMinute") }
+    var dailyScheduleMinute: Int {
+        didSet { UserDefaults.standard.set(dailyScheduleMinute, forKey: "dailyScheduleMinute") }
+    }
+
+    // --- Weekly schedule: generates a "week" briefing (default: Sunday 3 PM) ---
+    var weeklyScheduleEnabled: Bool {
+        didSet { UserDefaults.standard.set(weeklyScheduleEnabled, forKey: "weeklyScheduleEnabled") }
+    }
+    var weeklyScheduleDay: Int {  // 1=Sunday, 2=Monday, ..., 7=Saturday
+        didSet { UserDefaults.standard.set(weeklyScheduleDay, forKey: "weeklyScheduleDay") }
+    }
+    var weeklyScheduleHour: Int {
+        didSet { UserDefaults.standard.set(weeklyScheduleHour, forKey: "weeklyScheduleHour") }
+    }
+    var weeklyScheduleMinute: Int {
+        didSet { UserDefaults.standard.set(weeklyScheduleMinute, forKey: "weeklyScheduleMinute") }
     }
 
     init() {
@@ -54,8 +68,12 @@ final class AppSettings {
         self.minimumFreeWindowMinutes = defaults.object(forKey: "minimumFreeWindowMinutes") as? Int ?? 45
         self.calendarDaysAhead = defaults.object(forKey: "calendarDaysAhead") as? Int ?? 7
         self.useOAuth = defaults.bool(forKey: "useOAuth")
-        self.scheduleEnabled = defaults.bool(forKey: "scheduleEnabled")
-        self.scheduleHour = defaults.object(forKey: "scheduleHour") as? Int ?? 7
-        self.scheduleMinute = defaults.object(forKey: "scheduleMinute") as? Int ?? 0
+        self.dailyScheduleEnabled = defaults.bool(forKey: "dailyScheduleEnabled")
+        self.dailyScheduleHour = defaults.object(forKey: "dailyScheduleHour") as? Int ?? 6
+        self.dailyScheduleMinute = defaults.object(forKey: "dailyScheduleMinute") as? Int ?? 0
+        self.weeklyScheduleEnabled = defaults.bool(forKey: "weeklyScheduleEnabled")
+        self.weeklyScheduleDay = defaults.object(forKey: "weeklyScheduleDay") as? Int ?? 1
+        self.weeklyScheduleHour = defaults.object(forKey: "weeklyScheduleHour") as? Int ?? 15
+        self.weeklyScheduleMinute = defaults.object(forKey: "weeklyScheduleMinute") as? Int ?? 0
     }
 }

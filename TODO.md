@@ -15,9 +15,10 @@
 - [ ] OAuth support (experimental): PKCE flow for "Sign in with Claude" as alternative to API key
 
 ## Scheduling & Notifications
-- [ ] Timer-based auto-run: generate briefing on a configurable schedule
-- [ ] macOS notification when a scheduled briefing is ready
-- [ ] Handle wake-from-sleep (re-trigger if scheduled time was missed)
+- [x] Cron jobs: daily briefing regeneration at 6 AM, weekly briefing on Sundays at 3 PM
+- [x] Timer-based auto-run: generate briefing on a configurable schedule
+- [x] macOS notification when a scheduled briefing is ready
+- [x] Handle wake-from-sleep (re-trigger if scheduled time was missed)
 
 ## iCloud Drive Sync
 - [x] Cache personal calendar events (iCloud, Bendicoot, Planning Board) to iCloud Drive for work Mac
