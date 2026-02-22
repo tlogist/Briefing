@@ -171,3 +171,20 @@
   modifiers to call `scheduler.rescheduleDaily()` / `rescheduleWeekly()` when
   the user changes schedule settings. The scheduler does not auto-observe
   settings because `withObservationTracking` is awkward for this use case.
+
+## Dual-Output Strategy (Popover vs Export)
+
+- **Popover uses markdown, export uses HTML.** Claude always outputs markdown
+  (bullet lists, bold/italic) because that's what the narrow popover can render.
+  `BriefingHTMLExporter` post-processes this markdown into a styled HTML document
+  for PDF export — tables, colored section blocks, dark Bottom Line box.
+- **Never change Claude's output format for export.** The markdown must remain
+  popover-friendly. All rich formatting is applied in the HTML conversion layer.
+- **Export workflow: HTML → Safari → Print → PDF.** The app writes an HTML file
+  to the temp directory and opens it in the default browser. The user uses
+  File > Print > Save as PDF. This avoids wrestling with `NSPrintOperation` and
+  `NSAttributedString` limitations.
+- **Calendar bullets follow a convention.** Claude outputs calendar events as
+  `**TIME:** Event description` bullets. The HTML exporter pattern-matches these
+  into `<table>` rows with time/event columns. Conflict rows get red styling,
+  free windows get green.

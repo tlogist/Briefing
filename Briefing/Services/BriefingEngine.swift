@@ -310,6 +310,9 @@ actor BriefingEngine {
 
             Structure your output as follows:
 
+            ### 🔑 Bottom Line
+            Executive summary: realistic capacity given today's calendar, what's most at risk of slipping, and one clear recommendation. 3-5 sentences max.
+
             ### 📅 Calendar at a Glance
             Summarize today's schedule as a bullet list (one bullet per event with time and title). Note any important meetings, conflicts, or logistics.
 
@@ -325,9 +328,6 @@ actor BriefingEngine {
             ### 🚩 Stale / Overdue
             Tasks that are overdue or haven't moved in a while as a bullet list. Be direct about what should be dropped, delegated, or rescheduled.
 
-            ### 📊 Capacity Assessment
-            Given today's calendar, how many tasks can realistically get done? What's most at risk of slipping this week? Any specific recommendations on when to tackle what (e.g., "use the 2-hour gap after lunch for the KensieMae doc").
-
             ### 👀 Noosh Awareness
             Anything from Noosh's schedule that Michael should know about (shared logistics, overlapping commitments, etc.).
             """
@@ -341,6 +341,9 @@ actor BriefingEngine {
 
             Structure your output as follows:
 
+            ### 🔑 Bottom Line
+            Executive summary: realistic capacity given tomorrow's calendar, what's most at risk, and one clear recommendation. 3-5 sentences max.
+
             ### 📅 Tomorrow's Schedule
             Summarize tomorrow's calendar as a bullet list (one bullet per event with time and title). Note any important meetings, conflicts, or logistics.
 
@@ -352,9 +355,6 @@ actor BriefingEngine {
 
             ### ⏳ Waiting On
             Items that are blocked on other people as a bullet list. Note who and what the next follow-up should be.
-
-            ### 📊 Capacity Assessment
-            Given tomorrow's calendar, how many tasks can realistically get done? Any specific recommendations on when to tackle what based on free windows.
 
             ### 👀 Noosh Awareness
             Anything from Noosh's schedule tomorrow that Michael should know about (shared logistics, overlapping commitments, etc.).
@@ -368,6 +368,9 @@ actor BriefingEngine {
             Title the briefing: "# Your Week Ahead — Week of [Month] [Day], [Year]"
 
             Structure your output as follows:
+
+            ### 🔑 Bottom Line
+            Executive summary: realistic capacity for the week, what's most at risk, and one clear recommendation. 3-5 sentences max.
 
             ### 📅 Week Overview
             A 2-3 sentence summary of the week: how heavy is the calendar, which days are busiest, which have the most room for deep work.
@@ -389,9 +392,6 @@ actor BriefingEngine {
 
             ### 🚩 Stale / Overdue
             Tasks that are overdue or slipping as a bullet list. Be direct about what should be dropped, delegated, or rescheduled this week.
-
-            ### 📊 Week Capacity
-            Overall capacity assessment: how much non-meeting time exists this week? Which days are best for deep work? What's most at risk of not getting done?
 
             ### 👀 Noosh Awareness
             Anything from Noosh's schedule this week that Michael should know about (shared logistics, overlapping commitments, etc.).

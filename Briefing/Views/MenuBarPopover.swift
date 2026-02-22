@@ -445,7 +445,7 @@ struct MenuBarPopover: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.borderless)
-                        .help("Export as PDF")
+                        .help("Export as HTML (print to PDF from browser)")
 
                         Spacer()
                         Text(DateFormatting.time.string(from: result.generatedAt))
@@ -519,64 +519,21 @@ struct MenuBarPopover: View {
         }
     }
 
-    /// Export the briefing to PDF via the system print dialog.
-    /// The native dialog includes "Save as PDF" — no custom rendering needed.
+    /// Export the briefing as a styled HTML file and open in Safari.
+    /// The user can then use File > Print > Save as PDF for a professional result
+    /// with tables, colored sections, and the Bottom Line dark box.
     private func exportToPDF(_ result: BriefingResult, scope: BriefingScope) {
-        // Close the popover so the print dialog isn't blocked
         NSApp.keyWindow?.close()
 
-        // Build a title like "Briefing - February 16, 2026" or "Briefing - Week of February 16, 2026"
-        let dateStr = DateFormatting.dateReadable.string(from: result.generatedAt)
-        let title: String
-        switch scope {
-        case .today:    title = "Briefing - \(dateStr)"
-        case .tomorrow: title = "Briefing - Tomorrow \(dateStr)"
-        case .week:     title = "Briefing - Week of \(dateStr)"
-        }
+        let html = BriefingHTMLExporter.generateHTML(from: result, scope: scope)
 
-        // Build an attributed string from the markdown content.
-        // NSAttributedString(markdown:) (macOS 12+) handles basic formatting.
-        let content: NSAttributedString
-        if let attrStr = try? NSAttributedString(
-            markdown: result.markdownContent,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) {
-            // Apply a readable body font — the default from markdown init is tiny
-            let styled = NSMutableAttributedString(attributedString: attrStr)
-            styled.addAttribute(
-                .font,
-                value: NSFont.systemFont(ofSize: 12),
-                range: NSRange(location: 0, length: styled.length)
-            )
-            content = styled
-        } else {
-            content = NSAttributedString(
-                string: result.markdownContent,
-                attributes: [.font: NSFont.systemFont(ofSize: 12)]
-            )
-        }
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let filename = "briefing-\(dateFormatter.string(from: result.generatedAt)).html"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
 
-        // Create a text view sized to US Letter with margins
-        let printInfo = NSPrintInfo()
-        printInfo.topMargin = 72
-        printInfo.bottomMargin = 72
-        printInfo.leftMargin = 72
-        printInfo.rightMargin = 72
-        printInfo.paperSize = NSSize(width: 612, height: 792)
-        printInfo.jobDisposition = .spool
-        printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = title
-
-        let contentWidth = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 0))
-        textView.isEditable = false
-        textView.textStorage?.setAttributedString(content)
-        textView.sizeToFit()
-
-        let printOp = NSPrintOperation(view: textView, printInfo: printInfo)
-        printOp.showsPrintPanel = true
-        printOp.showsProgressPanel = true
-        printOp.jobTitle = title
-        printOp.run()
+        try? html.data(using: .utf8)?.write(to: tempURL, options: .atomic)
+        NSWorkspace.shared.open(tempURL)
     }
 
     /// Show a cached briefing if available, otherwise generate a new one.
