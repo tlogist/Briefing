@@ -16,6 +16,11 @@
   `task.name().length === 0` before processing.
 - **5-second timeout on JXA calls.** Things 3 can hang, especially if it's launching.
   Always use `Process` with a timeout, never block the main thread.
+- **Tasks appear in multiple lists.** A task scheduled for Today still appears
+  in `lists.byName("Anytime").toDos()` (its project's default list). The JXA
+  script enumerates lists in priority order (Inbox → Today → Upcoming → Anytime
+  → Someday) and tracks seen IDs in an object (`seen[tid]`). This ensures each
+  task appears exactly once, assigned to its most specific list.
 
 ## Calendar Rules
 

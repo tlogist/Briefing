@@ -40,6 +40,10 @@ actor ThingsService {
             \(resolveApp)
             const results = [];
 
+            // Enumerate lists in priority order: a task scheduled for Today also
+            // appears in Anytime (its project's default list). By processing Today
+            // first and tracking seen IDs, we keep the most specific list assignment.
+            const seen = {};
             const lists = ["Inbox", "Today", "Upcoming", "Anytime", "Someday"];
             for (const listName of lists) {
                 let toDos;
@@ -53,9 +57,14 @@ actor ThingsService {
                     // Filter ghost tasks — Things 3 sometimes has empty-name entries
                     if (!name || name.length === 0) continue;
 
+                    const tid = t.id();
+                    // Skip if already seen from a higher-priority list
+                    if (seen[tid]) continue;
+                    seen[tid] = true;
+
                     const proj = t.project();
                     results.push({
-                        id: t.id(),
+                        id: tid,
                         name: name,
                         project: proj ? proj.name() : null,
                         list: listName,
@@ -78,7 +87,8 @@ actor ThingsService {
                     if (!name || name.length === 0) continue;
                     const tid = t.id();
                     // Skip if we already have this task from list enumeration
-                    if (results.some(r => r.id === tid)) continue;
+                    if (seen[tid]) continue;
+                    seen[tid] = true;
 
                     results.push({
                         id: tid,
