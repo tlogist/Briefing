@@ -123,11 +123,12 @@ struct SettingsView: View {
                 }
 
                 Picker("Model", selection: $settings.claudeModel) {
+                    Text("Claude Sonnet 4.6").tag("claude-sonnet-4-6")
                     Text("Claude Sonnet 4.5").tag("claude-sonnet-4-5-20250929")
                     Text("Claude Haiku 4.5").tag("claude-haiku-4-5-20251001")
                     Text("Claude Opus 4.6").tag("claude-opus-4-6")
                 }
-                .help("Sonnet is recommended — best balance of quality, speed, and cost (~$0.06/briefing)")
+                .help("Sonnet is recommended — best balance of quality, speed, and cost")
             }
 
             Section("Task System") {
