@@ -35,6 +35,9 @@ struct MenuBarPopover: View {
     @State private var chatHistory: [[String: Any]] = []
     @State private var isChatting = false
 
+    // AI maintenance triage (Tidy Up) — see MaintenanceView.swift
+    @State private var showTidyUp = false
+
     // Direct task actions (complete / reschedule / deadline / tag / quick-add)
     @State private var tasksInFlight: Set<String> = []
     @State private var taskActionError: String?
@@ -95,6 +98,20 @@ struct MenuBarPopover: View {
                             freeWindowsSection
                         }
                         tasksSection
+                        if showTidyUp {
+                            MaintenanceSection(
+                                thingsService: thingsService,
+                                settings: settings,
+                                tagNames: tagNames,
+                                onApplied: {
+                                    Task {
+                                        await loadTasks()
+                                        invalidateStaleBriefings()
+                                    }
+                                },
+                                onDismiss: { showTidyUp = false }
+                            )
+                        }
                         if !familyEvents.isEmpty {
                             familySection
                         }
@@ -347,6 +364,15 @@ struct MenuBarPopover: View {
                 Label("Today's Tasks", systemImage: "checkmark.circle")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
+                // AI maintenance triage — needs live Things (writes) + API key
+                if writesEnabled && KeychainService.load(key: KeychainService.Key.anthropicAPIKey) != nil {
+                    Button(action: { showTidyUp = true }) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Have Claude propose maintenance actions (you approve each)")
+                }
                 // Show Things 3 status indicator
                 switch thingsStatus {
                 case .notRunning:

@@ -42,6 +42,23 @@ implements them. Summary of what's binding here:
   the iCloud task cache (work Mac, Things not accessible), there is nothing to
   write to and no local token — any write UI must be disabled in cached mode.
 
+### AI maintenance triage (Tidy Up)
+
+- **Claude proposes; the human approves; ThingsService writes.** `MaintenanceService`
+  asks Claude for structured proposals (forced `tool_choice` on a `propose_actions`
+  tool — the structured-output path for our raw-HTTP client) and every write goes
+  through ThingsService's verified URL-scheme channel. Never let proposal code
+  write directly.
+- **Validate proposals before showing them.** Task ids must exist in the fetched
+  set and `add_tag` values must be in the live tag vocabulary — an unknown tag
+  would be silently dropped by the URL scheme and fake-succeed. Invalid
+  proposals are dropped, not repaired.
+- **Proposals run against LIVE task state only** (`fetchAllTasks()`, not the
+  cache) and the whole feature is gated on `writesEnabled` + API key.
+- **`creationDate`/`modificationDate` on BriefingTask are optional vars with nil
+  defaults** so todo.md-parsed tasks and pre-existing cache JSON keep working;
+  they exist to compute idle-days for staleness reasoning.
+
 ### Read-side quirks
 
 - **App name varies by version.** Older installs register as `"Things 3"` (with
@@ -117,6 +134,10 @@ implements them. Summary of what's binding here:
   `requestFullAccessToEvents` in EventKit.
 - **LSUIElement=YES in Info.plist.** The app should not appear in the Dock.
 - **Distribute outside App Store.** The sandbox blocks Apple Events needed for Things 3.
+- **The live copy is /Applications/Briefing.app** (since 2026-08-28). Install flow after
+  changes: `xcodebuild -configuration Release build`, then `ditto` the Release product
+  from DerivedData to /Applications, then relaunch. The Debug build in DerivedData is
+  for development only — don't assume it's what the user is running.
 
 ## Personal Calendar Cache (iCloud Drive)
 

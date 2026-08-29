@@ -68,7 +68,8 @@ actor ClaudeAPIService {
         system: String? = nil,
         model: String = "claude-sonnet-4-6",
         maxTokens: Int = 1024,
-        tools: [[String: Any]]? = nil
+        tools: [[String: Any]]? = nil,
+        toolChoice: [String: Any]? = nil
     ) async throws -> ChatResponse {
         let auth = try await authProvider.authHeader()
 
@@ -82,6 +83,11 @@ actor ClaudeAPIService {
         }
         if let tools = tools, !tools.isEmpty {
             body["tools"] = tools
+        }
+        // e.g. {"type": "tool", "name": "propose_actions"} to force a specific
+        // tool call — the structured-output path for this raw-HTTP client
+        if let toolChoice = toolChoice {
+            body["tool_choice"] = toolChoice
         }
 
         let jsonData = try JSONSerialization.data(withJSONObject: body)

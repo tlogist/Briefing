@@ -78,7 +78,9 @@ actor ThingsService {
                         dueDate: t.dueDate() ? t.dueDate().toISOString() : null,
                         notes: t.notes() || null,
                         tags: t.tagNames() || "",
-                        status: t.status()
+                        status: t.status(),
+                        creationDate: t.creationDate() ? t.creationDate().toISOString() : null,
+                        modificationDate: t.modificationDate() ? t.modificationDate().toISOString() : null
                     });
                 }
             }
@@ -105,7 +107,9 @@ actor ThingsService {
                         dueDate: t.dueDate() ? t.dueDate().toISOString() : null,
                         notes: t.notes() || null,
                         tags: t.tagNames() || "",
-                        status: t.status()
+                        status: t.status(),
+                        creationDate: t.creationDate() ? t.creationDate().toISOString() : null,
+                        modificationDate: t.modificationDate() ? t.modificationDate().toISOString() : null
                     });
                 }
             }
@@ -131,6 +135,7 @@ actor ThingsService {
             // Map Things 3 list name to our enum
             let list = TaskList(rawValue: raw.list) ?? .anytime
 
+            let iso = ISO8601DateFormatter()
             return BriefingTask(
                 id: raw.id,
                 name: raw.name,
@@ -141,7 +146,9 @@ actor ThingsService {
                 tags: raw.tags.isEmpty ? [] : raw.tags.components(separatedBy: ", "),
                 isCompleted: raw.status == "completed",
                 completionDate: nil,
-                source: .things3
+                source: .things3,
+                creationDate: raw.creationDate.flatMap { iso.date(from: $0) },
+                modificationDate: raw.modificationDate.flatMap { iso.date(from: $0) }
             )
         }
     }
@@ -543,6 +550,8 @@ private struct ThingsRawTask: Decodable {
     let notes: String?
     let tags: String
     let status: String
+    let creationDate: String?
+    let modificationDate: String?
 }
 
 // MARK: - Fetch Status

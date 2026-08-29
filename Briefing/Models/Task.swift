@@ -44,6 +44,17 @@ struct BriefingTask: Identifiable, Sendable, Codable {
     let isCompleted: Bool
     let completionDate: Date?
     let source: TaskSource
+    // Staleness signals for AI maintenance triage. Optional vars with nil
+    // defaults so file-parsed tasks and pre-existing cache JSON (which lack
+    // these keys) keep constructing/decoding unchanged.
+    var creationDate: Date? = nil
+    var modificationDate: Date? = nil
+
+    // Days since the task was last touched (nil when Things didn't report it)
+    var idleDays: Int? {
+        guard let modified = modificationDate else { return nil }
+        return Calendar.current.dateComponents([.day], from: modified, to: Date()).day
+    }
 
     // Whether this task is overdue based on its due date
     var isOverdue: Bool {
