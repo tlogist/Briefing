@@ -9,12 +9,15 @@ enum TaskList: String, CaseIterable, Sendable, Codable {
     case anytime = "Anytime"
     case someday = "Someday"
 
-    // Things 3 URL scheme list parameter values
-    var urlSchemeValue: String {
+    // Value for the URL scheme's `when` parameter. The `list` parameter is NOT
+    // for built-in lists — it expects a project/area title, so `list=today`
+    // matches nothing and the task silently lands in Inbox. Scheduling into a
+    // built-in list is done via `when` instead.
+    var whenParameterValue: String? {
         switch self {
-        case .inbox: return "inbox"
+        case .inbox: return nil          // no `when` → defaults to Inbox
         case .today: return "today"
-        case .upcoming: return "upcoming"
+        case .upcoming: return "tomorrow" // `when` has no "upcoming"; tomorrow lands there
         case .anytime: return "anytime"
         case .someday: return "someday"
         }

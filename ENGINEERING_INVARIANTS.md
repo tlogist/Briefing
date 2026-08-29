@@ -7,11 +7,48 @@
 
 ## Things 3 Integration
 
+### Write channel (canonical — do not regress this)
+
+The canonical rules live in `~/code_ThingsEngage/INVARIANTS.md`; this app
+implements them. Summary of what's binding here:
+
+- **READ via JXA, WRITE via the `things:///` URL scheme. JXA must NEVER mutate
+  tasks.** The URL scheme is the only write path Cultured Code supports; the
+  JXA write path is unreliable (make/push silently fails) and bypasses the
+  system's single audited write channel. `ThingsService.completeTask` was
+  converted from a JXA status mutation to `things:///update` on 2026-08-28.
+- **`update` requires the auth token; `add` does not.** The token lives in the
+  macOS keychain (service `things-url-auth-token`, account = login user) and is
+  read by shelling out to `/usr/bin/security find-generic-password` — NOT the
+  Security framework. Why: the app is ad-hoc signed, so its signature changes
+  every rebuild and a framework read would re-prompt for keychain access each
+  time; `/usr/bin/security` is Apple-signed and created the item, so reads go
+  through silently. Accepted tradeoff: any local process can read the token the
+  same way. The token is **per-machine** — never sync or commit it.
+- **Every update is verified by read-after-write.** The URL scheme returns no
+  result and fails silently (wrong id, missing tag, bad token). After each
+  write, ThingsService polls the task back over JXA: completion checks
+  `status == "completed"`; generic updates check for a modification-date bump.
+  A write that isn't confirmed within ~2.5s throws `verificationFailed`.
+- **The `list` URL param is a project/area TITLE, not a built-in list.**
+  `list=today` matches nothing and the task silently lands in Inbox (this was
+  a live bug until 2026-08-28). Target built-in lists with `when=` (today,
+  tomorrow, evening, anytime, someday, or a date). `TaskList.whenParameterValue`
+  encodes the mapping.
+- **Tags cannot be created via the URL scheme.** `add-tags` with a tag that
+  doesn't exist in Things is silently dropped. New tags must be created once in
+  the Things UI. Use `add-tags` (appends), never `tags` (replaces).
+- **Writes require live Things on THIS machine.** When the app is running off
+  the iCloud task cache (work Mac, Things not accessible), there is nothing to
+  write to and no local token — any write UI must be disabled in cached mode.
+
+### Read-side quirks
+
 - **App name varies by version.** Older installs register as `"Things 3"` (with
   a space), newer ones as `"Things3"` (no space). JXA scripts must try both —
   use the `resolveApp` snippet in ThingsService rather than hardcoding either name.
-- **JXA `make`/`push` does NOT work for creating tasks.** Use the URL scheme instead:
-  `things:///add?title=...&notes=...&list=today`. Tasks created this way land in Inbox.
+- **JXA `make`/`push` does NOT work for creating tasks.** Use the URL scheme
+  (`things:///add`) — see the write-channel rules above.
 - **Ghost tasks exist.** Things 3 sometimes has tasks with empty names. Always filter
   `task.name().length === 0` before processing.
 - **5-second timeout on JXA calls.** Things 3 can hang, especially if it's launching.
