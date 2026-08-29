@@ -2,18 +2,39 @@ import Foundation
 import EventKit
 
 // Determines whose calendar an event belongs to, based on the calendar name.
-// cal:Home = Noosh's calendar. Everything else = Michael's.
+// cal:Home = the shared Family Calendar (renamed 2026-08-28; it was previously
+// treated as Noosh's personal calendar). Everything else = Michael's.
 enum CalendarOwner: String, Sendable, Codable {
     case michael
-    case noosh
+    case family
     case other
 
     static func classify(calendarTitle: String) -> CalendarOwner {
-        // "Home" calendar belongs to Noosh — show in separate section
+        // "Home" calendar is the shared family calendar — show in its own
+        // section rather than merging into Michael's timeline
         if calendarTitle.lowercased() == "home" {
-            return .noosh
+            return .family
         }
         return .michael
+    }
+
+    // Cached events (personal-calendar-cache.json on iCloud Drive, popover
+    // snapshot) may have been written by a pre-rename build that encoded
+    // "noosh". Map it to .family so cross-machine caches keep decoding while
+    // the two Macs are on different builds.
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "noosh": self = .family
+        default:
+            guard let value = CalendarOwner(rawValue: raw) else {
+                throw DecodingError.dataCorrupted(DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Unknown CalendarOwner value: \(raw)"
+                ))
+            }
+            self = value
+        }
     }
 }
 

@@ -169,7 +169,7 @@ actor CalendarService {
     // MARK: - Conflict Detection
 
     /// Find pairs of events that overlap in time.
-    /// Excludes all-day events, Noosh's events, holiday calendars, and
+    /// Excludes all-day events, family-calendar events, holiday calendars, and
     /// "Blocked" time holds (which reserve time for overlapping events,
     /// not compete with them).
     func detectConflicts(in events: [CalendarEvent]) -> [ConflictPair] {

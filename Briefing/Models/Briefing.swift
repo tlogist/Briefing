@@ -12,7 +12,7 @@ struct BriefingResult: Identifiable, Codable {
 
     // Source data used to generate this briefing (for display/debugging)
     let michaelEventCount: Int
-    let nooshEventCount: Int
+    let familyEventCount: Int
     let conflictCount: Int
     let freeWindowCount: Int
     let taskCount: Int
@@ -30,7 +30,7 @@ struct BriefingResult: Identifiable, Codable {
         promptTokens: Int?,
         responseTokens: Int?,
         michaelEventCount: Int,
-        nooshEventCount: Int,
+        familyEventCount: Int,
         conflictCount: Int,
         freeWindowCount: Int,
         taskCount: Int,
@@ -44,7 +44,7 @@ struct BriefingResult: Identifiable, Codable {
         self.promptTokens = promptTokens
         self.responseTokens = responseTokens
         self.michaelEventCount = michaelEventCount
-        self.nooshEventCount = nooshEventCount
+        self.familyEventCount = familyEventCount
         self.conflictCount = conflictCount
         self.freeWindowCount = freeWindowCount
         self.taskCount = taskCount

@@ -74,7 +74,7 @@ enum BriefingHTMLExporter {
         case priorities
         case waiting
         case stale
-        case noosh
+        case family
         case regular
     }
 
@@ -86,7 +86,8 @@ enum BriefingHTMLExporter {
         if lower.contains("priorities") || lower.contains("priority") { return .priorities }
         if lower.contains("waiting") { return .waiting }
         if lower.contains("stale") || lower.contains("overdue") { return .stale }
-        if lower.contains("noosh") { return .noosh }
+        // "noosh" kept for briefings cached before the Family Calendar rename
+        if lower.contains("family") || lower.contains("noosh") { return .family }
         return .regular
     }
 
@@ -148,8 +149,8 @@ enum BriefingHTMLExporter {
             case .stale:
                 html.append("<div class=\"section-block stale\">")
                 html.append("<h3>\(processInlineFormatting(heading))</h3>")
-            case .noosh:
-                html.append("<div class=\"section-block noosh\">")
+            case .family:
+                html.append("<div class=\"section-block family\">")
                 html.append("<h3>\(processInlineFormatting(heading))</h3>")
             case .regular:
                 html.append("<div class=\"section-block\">")
@@ -469,7 +470,7 @@ enum BriefingHTMLExporter {
             background-color: #FFF5F5;
         }
 
-        .section-block.noosh {
+        .section-block.family {
             border-left-color: #AF52DE;
             background-color: #F9F0FF;
         }

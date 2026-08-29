@@ -61,8 +61,14 @@ implements them. Summary of what's binding here:
 
 ## Calendar Rules
 
-- **cal:Home is Noosh's calendar, NOT Michael's.** Events from `cal:Home` must appear in a
-  separate "Noosh's Schedule" section. Never merge them into Michael's main timeline.
+- **cal:Home is the shared FAMILY calendar** (as of 2026-08-28; it was previously treated
+  as Noosh's personal calendar). Events from `cal:Home` appear in a separate
+  "Family Calendar" section — never merged into Michael's main timeline. Noosh's
+  commitments still land here, but so do shared/family events.
+- **Legacy cache compatibility:** pre-rename builds encoded the owner as `"noosh"`.
+  `CalendarOwner.init(from:)` maps `"noosh"` → `.family` so cross-machine cache files
+  (`personal-calendar-cache.json`) keep decoding while the two Macs are on different
+  builds. Keep that mapping until both Macs run post-rename builds.
 - **All other Apple calendars are Michael's** — merge into the main timeline alongside
   work calendar events.
 - **Free windows must be ≥45 minutes** to be flagged as useful for deep work.

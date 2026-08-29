@@ -11,7 +11,7 @@ struct MenuBarPopover: View {
     var scheduler: BriefingScheduler?
 
     @State private var michaelEvents: [CalendarEvent] = []
-    @State private var nooshEvents: [CalendarEvent] = []
+    @State private var familyEvents: [CalendarEvent] = []
     @State private var freeWindows: [FreeWindow] = []
     @State private var conflicts: [ConflictPair] = []
     @State private var todayTasks: [BriefingTask] = []
@@ -80,8 +80,8 @@ struct MenuBarPopover: View {
                             freeWindowsSection
                         }
                         tasksSection
-                        if !nooshEvents.isEmpty {
-                            nooshSection
+                        if !familyEvents.isEmpty {
+                            familySection
                         }
                         if !chatMessages.isEmpty {
                             chatSection
@@ -568,13 +568,13 @@ struct MenuBarPopover: View {
         }
     }
 
-    private var nooshSection: some View {
+    private var familySection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Noosh's Schedule")
+            Text("Family Calendar")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.purple)
 
-            ForEach(nooshEvents) { event in
+            ForEach(familyEvents) { event in
                 EventRow(event: event, now: now)
             }
         }
@@ -818,7 +818,7 @@ struct MenuBarPopover: View {
         // Restore from cache first — popover appears instantly with stale data
         let hasCachedData = PopoverDataCache.restore(
             michaelEvents: &michaelEvents,
-            nooshEvents: &nooshEvents,
+            familyEvents: &familyEvents,
             conflicts: &conflicts,
             freeWindows: &freeWindows,
             todayTasks: &todayTasks
@@ -844,7 +844,7 @@ struct MenuBarPopover: View {
         // Persist the fresh data for next time
         PopoverDataCache.save(
             michaelEvents: michaelEvents,
-            nooshEvents: nooshEvents,
+            familyEvents: familyEvents,
             conflicts: conflicts,
             freeWindows: freeWindows,
             todayTasks: todayTasks
@@ -901,7 +901,7 @@ struct MenuBarPopover: View {
                 from: start, to: end, cacheDirectoryPath: settings.taskDirectoryPath
             )
             michaelEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .michael })
-            nooshEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .noosh })
+            familyEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .family })
             conflicts = await calendarService.detectConflicts(in: allEvents)
             freeWindows = await calendarService.findFreeWindows(
                 in: allEvents,
@@ -1117,7 +1117,7 @@ enum PopoverDataCache {
 
     private struct Snapshot: Codable {
         let michaelEvents: [CalendarEvent]
-        let nooshEvents: [CalendarEvent]
+        let familyEvents: [CalendarEvent]
         let conflicts: [ConflictPair]
         let freeWindows: [FreeWindow]
         let todayTasks: [BriefingTask]
@@ -1126,14 +1126,14 @@ enum PopoverDataCache {
 
     static func save(
         michaelEvents: [CalendarEvent],
-        nooshEvents: [CalendarEvent],
+        familyEvents: [CalendarEvent],
         conflicts: [ConflictPair],
         freeWindows: [FreeWindow],
         todayTasks: [BriefingTask]
     ) {
         let snapshot = Snapshot(
             michaelEvents: michaelEvents,
-            nooshEvents: nooshEvents,
+            familyEvents: familyEvents,
             conflicts: conflicts,
             freeWindows: freeWindows,
             todayTasks: todayTasks,
@@ -1147,7 +1147,7 @@ enum PopoverDataCache {
     /// cached data was available (even if stale).
     static func restore(
         michaelEvents: inout [CalendarEvent],
-        nooshEvents: inout [CalendarEvent],
+        familyEvents: inout [CalendarEvent],
         conflicts: inout [ConflictPair],
         freeWindows: inout [FreeWindow],
         todayTasks: inout [BriefingTask]
@@ -1157,7 +1157,7 @@ enum PopoverDataCache {
             return false
         }
         michaelEvents = snapshot.michaelEvents
-        nooshEvents = snapshot.nooshEvents
+        familyEvents = snapshot.familyEvents
         conflicts = snapshot.conflicts
         freeWindows = snapshot.freeWindows
         todayTasks = snapshot.todayTasks

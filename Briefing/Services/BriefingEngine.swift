@@ -68,7 +68,7 @@ actor BriefingEngine {
             promptTokens: nil,
             responseTokens: nil,
             michaelEventCount: calendar.michaelEvents.count,
-            nooshEventCount: calendar.nooshEvents.count,
+            familyEventCount: calendar.familyEvents.count,
             conflictCount: calendar.conflicts.count,
             freeWindowCount: calendar.freeWindows.count,
             taskCount: tasks.count,
@@ -170,7 +170,7 @@ actor BriefingEngine {
 
     private struct CalendarData {
         let michaelEvents: [CalendarEvent]
-        let nooshEvents: [CalendarEvent]
+        let familyEvents: [CalendarEvent]
         let conflicts: [ConflictPair]
         let freeWindows: [FreeWindow]
     }
@@ -198,7 +198,7 @@ actor BriefingEngine {
             )
         }
         let michael = allEvents.filter { $0.owner == .michael }
-        let noosh = allEvents.filter { $0.owner == .noosh }
+        let family = allEvents.filter { $0.owner == .family }
         let conflicts = await calendarService.detectConflicts(in: allEvents)
         let freeWindows = await calendarService.findFreeWindows(
             in: allEvents,
@@ -206,7 +206,7 @@ actor BriefingEngine {
         )
         return CalendarData(
             michaelEvents: michael,
-            nooshEvents: noosh,
+            familyEvents: family,
             conflicts: conflicts,
             freeWindows: freeWindows
         )
@@ -258,10 +258,10 @@ actor BriefingEngine {
             with: formatEvents(calendar.michaelEvents)
         )
 
-        // Noosh's events
+        // Family calendar events
         template = template.replacingOccurrences(
-            of: "{{NOOSH_EVENTS}}",
-            with: calendar.nooshEvents.isEmpty ? "No events" : formatEvents(calendar.nooshEvents)
+            of: "{{FAMILY_EVENTS}}",
+            with: calendar.familyEvents.isEmpty ? "No events" : formatEvents(calendar.familyEvents)
         )
 
         // Conflicts
@@ -328,8 +328,8 @@ actor BriefingEngine {
             ### 🚩 Stale / Overdue
             Tasks that are overdue or haven't moved in a while as a bullet list. Be direct about what should be dropped, delegated, or rescheduled.
 
-            ### 👀 Noosh Awareness
-            Anything from Noosh's schedule that Michael should know about (shared logistics, overlapping commitments, etc.).
+            ### 👀 Family Awareness
+            Anything on the family calendar that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         case .tomorrow:
             return """
@@ -356,8 +356,8 @@ actor BriefingEngine {
             ### ⏳ Waiting On
             Items that are blocked on other people as a bullet list. Note who and what the next follow-up should be.
 
-            ### 👀 Noosh Awareness
-            Anything from Noosh's schedule tomorrow that Michael should know about (shared logistics, overlapping commitments, etc.).
+            ### 👀 Family Awareness
+            Anything on the family calendar tomorrow that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         case .week:
             return """
@@ -393,8 +393,8 @@ actor BriefingEngine {
             ### 🚩 Stale / Overdue
             Tasks that are overdue or slipping as a bullet list. Be direct about what should be dropped, delegated, or rescheduled this week.
 
-            ### 👀 Noosh Awareness
-            Anything from Noosh's schedule this week that Michael should know about (shared logistics, overlapping commitments, etc.).
+            ### 👀 Family Awareness
+            Anything on the family calendar this week that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         }
     }
@@ -517,8 +517,8 @@ actor BriefingEngine {
         Here are Michael's calendar events for the week:
         {{MICHAEL_EVENTS}}
 
-        Noosh's schedule:
-        {{NOOSH_EVENTS}}
+        Family calendar:
+        {{FAMILY_EVENTS}}
 
         Conflicts: {{CONFLICTS}}
         Free windows: {{FREE_WINDOWS}}

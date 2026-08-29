@@ -5,13 +5,20 @@ final class CalendarServiceTests: XCTestCase {
 
     // MARK: - CalendarOwner Classification
 
-    func testHomeCalendarIsNoosh() {
-        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "Home"), .noosh)
+    func testHomeCalendarIsFamily() {
+        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "Home"), .family)
     }
 
     func testHomeCalendarCaseInsensitive() {
-        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "home"), .noosh)
-        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "HOME"), .noosh)
+        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "home"), .family)
+        XCTAssertEqual(CalendarOwner.classify(calendarTitle: "HOME"), .family)
+    }
+
+    // Caches written by pre-rename builds encoded "noosh" — they must keep
+    // decoding (as .family) while both Macs converge on the new build.
+    func testLegacyNooshValueDecodesAsFamily() throws {
+        let decoded = try JSONDecoder().decode(CalendarOwner.self, from: Data("\"noosh\"".utf8))
+        XCTAssertEqual(decoded, .family)
     }
 
     func testOtherCalendarsAreMichael() {
