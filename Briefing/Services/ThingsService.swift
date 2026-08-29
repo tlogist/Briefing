@@ -9,7 +9,9 @@ import Foundation
 // must never mutate tasks. The URL scheme is the only write path Cultured Code
 // supports, and the JXA write path has already proven unreliable here
 // (make/push silently fails). Because the URL scheme returns no result, every
-// update is verified by reading the task back over JXA (read-after-write).
+// write is verified by reading state back over JXA (read-after-write): updates
+// re-read the task's changed fields; adds poll the creation window for the
+// new task by title.
 //
 // Key quirks documented in ENGINEERING_INVARIANTS.md:
 // - App name is "Things 3" (with space) on older installs, "Things3" on newer
@@ -377,9 +379,17 @@ actor ThingsService {
 
     /// Create a new task in Things 3 via `things:///add` (creation needs no
     /// auth token). JXA's make/push doesn't work reliably for task creation.
-    /// No read-back verification: `add` returns no id to read back — capturing
-    /// it needs an x-callback-url round trip (planned, not yet built).
-    func createTask(title: String, notes: String? = nil, list: TaskList = .today) async throws {
+    ///
+    /// Verified by creation-window read-back (INVARIANTS.md §14): `add` gives
+    /// a shell-style caller no id, so we snapshot the clock before the write
+    /// and poll for a task whose name matches and whose creation date falls
+    /// after the snapshot. Zero matches within the poll window means the add
+    /// silently failed → verificationFailed. Returns the created task's id
+    /// when the match is unambiguous (exactly one), nil when several identical
+    /// titles landed in the same window. An x-callback-url round trip remains
+    /// the planned upgrade for direct id capture without polling.
+    @discardableResult
+    func createTask(title: String, notes: String? = nil, list: TaskList = .today) async throws -> String? {
         var queryItems = [
             URLQueryItem(name: "title", value: title),
             URLQueryItem(name: "show-quick-entry", value: "false")
@@ -393,7 +403,13 @@ actor ThingsService {
         if let notes = notes, !notes.isEmpty {
             queryItems.append(URLQueryItem(name: "notes", value: notes))
         }
+        // Snapshot BEFORE the write (§14 step 1). Padded a full second back:
+        // Things reports dates at whole-second granularity, so a creation
+        // date truncated to the top of the current second must not read as
+        // "before" the snapshot.
+        let sinceMs = Date().timeIntervalSince1970 * 1000 - 1000
         try await openThingsURL(command: "add", queryItems: queryItems)
+        return try await verifyCreate(title: title, sinceMs: sinceMs)
     }
 
     // MARK: - Check if Things 3 is Running
@@ -521,6 +537,48 @@ actor ThingsService {
             tags: tagString.isEmpty ? [] : tagString.components(separatedBy: ", "),
             activationYmd: json["activation"] as? String,
             dueYmd: json["due"] as? String
+        )
+    }
+
+    /// Poll for a task created after `sinceMs` whose name matches `title` —
+    /// the read-back that proves a `things:///add` actually landed. Three
+    /// bulk events per attempt (ids, names, creation dates), never a
+    /// per-item loop (§9). Returns the new task's id when exactly one task
+    /// matches, nil when the match is ambiguous (several identical titles
+    /// created inside the window — the add still verifiably landed).
+    private func verifyCreate(title: String, sinceMs: Double) async throws -> String? {
+        // JSON-encode the title so quotes/backslashes can't break the script.
+        guard let titleData = try? JSONEncoder().encode([title]),
+              let titleJson = String(data: titleData, encoding: .utf8) else {
+            throw ThingsError.parseError("Could not encode title for create verification")
+        }
+        let script = """
+        (() => {
+            \(resolveApp)
+            const wanted = \(titleJson)[0];
+            const T = app.toDos;
+            const ids = T.id(), names = T.name(), created = T.creationDate();
+            const matches = [];
+            for (let i = 0; i < ids.length; i++) {
+                if (names[i] === wanted && created[i] && created[i].getTime() >= \(sinceMs)) {
+                    matches.push(ids[i]);
+                }
+            }
+            return JSON.stringify(matches);
+        })()
+        """
+        for attempt in 0..<5 {
+            // Same cadence as verifyWrite: short beat, then longer retries
+            try await Task.sleep(nanoseconds: attempt == 0 ? 300_000_000 : 500_000_000)
+            guard let output = try? await runJXA(script),
+                  let data = output.data(using: .utf8),
+                  let matches = try? JSONDecoder().decode([String].self, from: data) else { continue }
+            if matches.count == 1 { return matches[0] }
+            if matches.count > 1 { return nil }
+        }
+        throw ThingsError.verificationFailed(
+            "Things did not confirm creation of \"\(title)\". "
+            + "The add may have been silently dropped — check that Things is running."
         )
     }
 

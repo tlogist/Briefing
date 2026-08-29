@@ -35,8 +35,11 @@ implements them. Summary of what's binding here:
   reports modification dates at whole-second granularity, so two writes to one
   task in the same second read back equal dates and strict `>` false-fails.
   A write that isn't confirmed within ~2.5s throws `verificationFailed`.
-  (`add` is NOT verified yet — it returns no id without an x-callback-url
-  round trip, which is planned but not built.)
+  `add` is verified by creation-window read-back: snapshot the clock before
+  the write (padded 1s back for whole-second dates), then poll for a task
+  with the matching name created after the snapshot — exactly one match also
+  yields the created id. x-callback-url remains the planned upgrade for
+  direct id capture without polling.
 - **The `list` URL param is a project/area TITLE, not a built-in list.**
   `list=today` matches nothing and the task silently lands in Inbox (this was
   a live bug until 2026-08-28). Target built-in lists with `when=` (today,
