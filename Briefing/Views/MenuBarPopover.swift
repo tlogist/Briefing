@@ -35,6 +35,21 @@ struct MenuBarPopover: View {
     @State private var chatHistory: [[String: Any]] = []
     @State private var isChatting = false
 
+    // Direct task actions (complete / reschedule / deadline / tag / quick-add)
+    @State private var tasksInFlight: Set<String> = []
+    @State private var taskActionError: String?
+    @State private var tagNames: [String] = []
+    @State private var newTaskTitle = ""
+    @State private var isAddingTask = false
+
+    /// Writes need live Things on THIS machine. In cached mode (work Mac
+    /// reading things-task-cache.json) there is nothing to write to and no
+    /// local auth token, so all write affordances disappear.
+    private var writesEnabled: Bool {
+        if case .available = thingsStatus { return thingsCachedAt == nil }
+        return false
+    }
+
     /// Dynamic heading for the events section based on calendarDayOffset
     private var scheduleHeading: String {
         switch calendarDayOffset {
@@ -370,9 +385,35 @@ struct MenuBarPopover: View {
                         .padding(.vertical, 2)
                 } else {
                     ForEach(todayTasks) { task in
-                        TaskRow(task: task)
+                        TaskRow(
+                            task: task,
+                            isBusy: tasksInFlight.contains(task.id),
+                            onComplete: writesEnabled ? { completeTask(task) } : nil,
+                            onAction: writesEnabled ? { performTaskAction($0, on: task) } : nil,
+                            availableTags: tagNames
+                        )
                     }
                 }
+            }
+
+            if let error = taskActionError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+            }
+
+            if writesEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: isAddingTask ? "circle.dotted" : "plus.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("Add to Today…", text: $newTaskTitle)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                        .onSubmit { addTask() }
+                        .disabled(isAddingTask)
+                }
+                .padding(.vertical, 2)
             }
         }
     }
@@ -814,6 +855,7 @@ struct MenuBarPopover: View {
     private func loadAll() async {
         calendarDayOffset = 0
         errorMessage = nil
+        taskActionError = nil
 
         // Restore from cache first — popover appears instantly with stale data
         let hasCachedData = PopoverDataCache.restore(
@@ -958,6 +1000,9 @@ struct MenuBarPopover: View {
         case .live:
             thingsStatus = .available
             thingsCachedAt = nil
+            // Live Things → refresh the tag vocabulary for the tag menu.
+            // Keep the old list on a transient read failure.
+            tagNames = (try? await thingsService.fetchTagNames()) ?? tagNames
         case .cached(let cachedAt):
             thingsStatus = .available
             thingsCachedAt = cachedAt
@@ -968,6 +1013,96 @@ struct MenuBarPopover: View {
         case .error(let msg):
             thingsStatus = result.tasks.isEmpty ? .error(msg) : .available
             thingsCachedAt = await thingsService.lastThingsCacheDate
+        }
+    }
+
+    // MARK: - Task Actions (writes via ThingsService → URL scheme)
+
+    /// Complete a task from its row checkbox. The row shows a spinner while
+    /// the write + read-back verification runs; the task is only removed from
+    /// the list once Things confirms the completion.
+    private func completeTask(_ task: BriefingTask) {
+        guard writesEnabled, !tasksInFlight.contains(task.id) else { return }
+        tasksInFlight.insert(task.id)
+        taskActionError = nil
+        let things = thingsService
+        Task {
+            do {
+                try await things.completeTask(id: task.id)
+                await MainActor.run {
+                    tasksInFlight.remove(task.id)
+                    withAnimation { todayTasks.removeAll { $0.id == task.id } }
+                    invalidateStaleBriefings()
+                }
+            } catch {
+                await MainActor.run {
+                    tasksInFlight.remove(task.id)
+                    taskActionError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Context-menu actions: reschedule, set deadline, add tag.
+    private func performTaskAction(_ action: TaskRowAction, on task: BriefingTask) {
+        guard writesEnabled, !tasksInFlight.contains(task.id) else { return }
+        tasksInFlight.insert(task.id)
+        taskActionError = nil
+        let things = thingsService
+        Task {
+            do {
+                switch action {
+                case .reschedule(let when):
+                    try await things.updateTask(id: task.id, when: when)
+                    await MainActor.run {
+                        // Verified as no longer scheduled for today — drop it
+                        withAnimation { todayTasks.removeAll { $0.id == task.id } }
+                    }
+                case .setDeadline(let deadline):
+                    try await things.updateTask(id: task.id, deadline: deadline)
+                case .addTag(let tag):
+                    try await things.updateTask(id: task.id, addTags: [tag])
+                }
+                // Re-read so the visible due dates/tags match Things
+                await loadTasks()
+                await MainActor.run {
+                    tasksInFlight.remove(task.id)
+                    invalidateStaleBriefings()
+                }
+            } catch {
+                await MainActor.run {
+                    tasksInFlight.remove(task.id)
+                    taskActionError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Quick-add from the inline field. `add` needs no auth token but also
+    /// returns no id to verify against, so we just give Things a beat and
+    /// re-read the list. The field only clears on success.
+    private func addTask() {
+        let title = newTaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard writesEnabled, !title.isEmpty, !isAddingTask else { return }
+        isAddingTask = true
+        taskActionError = nil
+        let things = thingsService
+        Task {
+            do {
+                try await things.createTask(title: title, list: .today)
+                try await Task.sleep(nanoseconds: 800_000_000)
+                await loadTasks()
+                await MainActor.run {
+                    newTaskTitle = ""
+                    isAddingTask = false
+                    invalidateStaleBriefings()
+                }
+            } catch {
+                await MainActor.run {
+                    isAddingTask = false
+                    taskActionError = error.localizedDescription
+                }
+            }
         }
     }
 }
@@ -1068,14 +1203,42 @@ struct ChatBubble: View {
 
 // MARK: - Task Row Component
 
+/// Write actions a row's context menu can request. Values map directly onto
+/// ThingsService.updateTask parameters.
+enum TaskRowAction {
+    case reschedule(when: String)     // "tomorrow", "someday", ...
+    case setDeadline(String)          // "YYYY-MM-DD"
+    case addTag(String)               // must be an existing Things tag
+}
+
 struct TaskRow: View {
     let task: BriefingTask
+    // Write affordances are opt-in: with the defaults the row renders exactly
+    // as the old read-only version (used when Things is cached/unavailable).
+    var isBusy: Bool = false
+    var onComplete: (() -> Void)? = nil
+    var onAction: ((TaskRowAction) -> Void)? = nil
+    var availableTags: [String] = []
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.caption)
-                .foregroundStyle(task.isCompleted ? .green : .primary)
+            if isBusy {
+                ProgressView()
+                    .scaleEffect(0.4)
+                    .frame(width: 14, height: 14)
+            } else if let onComplete {
+                Button(action: onComplete) {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.caption)
+                        .foregroundStyle(task.isCompleted ? .green : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("Complete in Things")
+            } else {
+                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.caption)
+                    .foregroundStyle(task.isCompleted ? .green : .primary)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.name)
@@ -1098,12 +1261,50 @@ struct TaskRow: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+                    if !task.tags.isEmpty {
+                        Text(task.tags.map { "#\($0)" }.joined(separator: " "))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
                 }
             }
 
             Spacer()
         }
         .padding(.vertical, 2)
+        .contextMenu {
+            if let onAction, !isBusy {
+                Button("Push to Tomorrow") {
+                    onAction(.reschedule(when: "tomorrow"))
+                }
+                Button("Move to Someday") {
+                    onAction(.reschedule(when: "someday"))
+                }
+                Menu("Set Deadline") {
+                    Button("Today") { onAction(.setDeadline(Self.dateString(daysFromNow: 0))) }
+                    Button("Tomorrow") { onAction(.setDeadline(Self.dateString(daysFromNow: 1))) }
+                    Button("In a Week") { onAction(.setDeadline(Self.dateString(daysFromNow: 7))) }
+                }
+                if !availableTags.isEmpty {
+                    Menu("Add Tag") {
+                        // Only tags that already exist in Things — the URL
+                        // scheme silently drops unknown ones
+                        ForEach(availableTags.filter { !task.tags.contains($0) }, id: \.self) { tag in
+                            Button(tag) { onAction(.addTag(tag)) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// "YYYY-MM-DD" for the URL scheme's deadline parameter.
+    private static func dateString(daysFromNow: Int) -> String {
+        let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }
 

@@ -25,3 +25,6 @@ xcuserdata/
 .build/
 Packages/
 Package.resolved
+
+# Claude Code local settings (per-machine permissions)
+.claude/settings.local.json

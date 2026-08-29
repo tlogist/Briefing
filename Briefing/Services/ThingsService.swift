@@ -152,6 +152,26 @@ actor ThingsService {
         return all.filter { $0.list == .today && !$0.isCompleted }
     }
 
+    // MARK: - Read Tags
+
+    /// All tag names defined in Things. Tag UI must restrict itself to these:
+    /// the URL scheme cannot create tags, and `add-tags` with an unknown tag
+    /// is silently dropped. New tags are created once in the Things UI.
+    func fetchTagNames() async throws -> [String] {
+        let script = """
+        (() => {
+            \(resolveApp)
+            return JSON.stringify(app.tags.name());
+        })()
+        """
+        let output = try await runJXA(script)
+        guard let data = output.data(using: .utf8),
+              let names = try? JSONDecoder().decode([String].self, from: data) else {
+            throw ThingsError.parseError("Could not parse tag names")
+        }
+        return names
+    }
+
     // MARK: - Things 3 Task Cache
 
     /// Fetch all tasks with iCloud Drive cache fallback.
