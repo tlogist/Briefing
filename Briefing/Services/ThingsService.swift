@@ -18,7 +18,10 @@ import Foundation
 // - Things 3 can hang on launch, so we enforce a 5-second timeout
 // - The write auth token lives in the keychain (service things-url-auth-token)
 actor ThingsService {
-    private let timeoutSeconds: Double = 5.0
+    // 10s guard against a hung Things; the bulk fetch normally runs <1s.
+    // (Was 5.0 — the per-item fetch grew past it and every read silently
+    // fell back to cache. Keep headroom, but never let the fetch creep up.)
+    private let timeoutSeconds: Double = 10.0
 
     /// Non-nil when the last fetch used cached tasks (i.e., Things 3 wasn't
     /// accessible on this Mac). The UI reads this to show freshness.
@@ -39,79 +42,71 @@ actor ThingsService {
 
     /// Fetch all open tasks from Things 3, grouped by list.
     /// Returns empty array (not an error) if Things 3 isn't running.
+    ///
+    /// PERFORMANCE INVARIANT: every property is read as a BULK Apple Event
+    /// (one event per property per collection), never in a per-item loop.
+    /// Each Apple event costs tens of milliseconds against Things — a per-item
+    /// loop over ~25 tasks exceeded the JXA timeout (measured 5.4s) and made
+    /// every fetch silently fall back to the cached snapshot, which put the
+    /// whole app into read-only mode. The bulk form runs in under a second.
     func fetchAllTasks() async throws -> [BriefingTask] {
-        // Single JXA call that pulls everything — more efficient than
-        // separate calls per list since each osascript invocation has overhead.
         let script = """
         (() => {
             \(resolveApp)
-            const results = [];
+            const isoOrNull = d => d ? d.toISOString() : null;
 
-            // Enumerate lists in priority order: a task scheduled for Today also
-            // appears in Anytime (its project's default list). By processing Today
-            // first and tracking seen IDs, we keep the most specific list assignment.
-            const seen = {};
-            const lists = ["Inbox", "Today", "Upcoming", "Anytime", "Someday"];
-            for (const listName of lists) {
-                let toDos;
-                try {
-                    toDos = app.lists.byName(listName).toDos();
-                } catch(e) {
-                    continue;
-                }
-                for (const t of toDos) {
-                    const name = t.name();
-                    // Filter ghost tasks — Things 3 sometimes has empty-name entries
-                    if (!name || name.length === 0) continue;
-
-                    const tid = t.id();
-                    // Skip if already seen from a higher-priority list
-                    if (seen[tid]) continue;
-                    seen[tid] = true;
-
-                    const proj = t.project();
-                    results.push({
-                        id: tid,
-                        name: name,
-                        project: proj ? proj.name() : null,
-                        list: listName,
-                        dueDate: t.dueDate() ? t.dueDate().toISOString() : null,
-                        notes: t.notes() || null,
-                        tags: t.tagNames() || "",
-                        status: t.status(),
-                        creationDate: t.creationDate() ? t.creationDate().toISOString() : null,
-                        modificationDate: t.modificationDate() ? t.modificationDate().toISOString() : null
-                    });
-                }
+            // 1. List membership: ids only — one event per list. Priority
+            // order matters: a task scheduled for Today also appears in
+            // Anytime, and first-list-wins keeps the most specific label.
+            const listNames = ["Inbox", "Today", "Upcoming", "Anytime", "Someday"];
+            const listIds = {};
+            for (const L of listNames) {
+                try { listIds[L] = app.lists.byName(L).toDos.id(); } catch(e) { listIds[L] = []; }
             }
 
-            // Also pull tasks from projects directly (catches tasks that might
-            // not appear in the flat list views)
-            const projects = app.projects();
-            for (const proj of projects) {
-                const projName = proj.name();
-                const toDos = proj.toDos();
-                for (const t of toDos) {
-                    const name = t.name();
-                    if (!name || name.length === 0) continue;
-                    const tid = t.id();
-                    // Skip if we already have this task from list enumeration
-                    if (seen[tid]) continue;
-                    seen[tid] = true;
+            // 2. Project ownership: one ids event per project
+            const projs = app.projects;
+            const projNames = projs.name();
+            const idToProject = {};
+            for (let pi = 0; pi < projNames.length; pi++) {
+                let pids = [];
+                try { pids = projs[pi].toDos.id(); } catch(e) {}
+                for (const pid of pids) { idToProject[pid] = projNames[pi]; }
+            }
 
-                    results.push({
-                        id: tid,
-                        name: name,
-                        project: projName,
-                        list: "Anytime",
-                        dueDate: t.dueDate() ? t.dueDate().toISOString() : null,
-                        notes: t.notes() || null,
-                        tags: t.tagNames() || "",
-                        status: t.status(),
-                        creationDate: t.creationDate() ? t.creationDate().toISOString() : null,
-                        modificationDate: t.modificationDate() ? t.modificationDate().toISOString() : null
-                    });
-                }
+            // 3. One global bulk read per property across all todos
+            const T = app.toDos;
+            const ids = T.id(), names = T.name(), dues = T.dueDate(), notes = T.notes(),
+                  tags = T.tagNames(), statuses = T.status(),
+                  created = T.creationDate(), modified = T.modificationDate();
+
+            const listOf = {};
+            for (const L of listNames) {
+                for (const id of listIds[L]) { if (!(id in listOf)) listOf[id] = L; }
+            }
+
+            // 4. Assemble — same membership semantics as the old per-item
+            // version: the five flat lists plus project-contained tasks
+            const results = [];
+            for (let i = 0; i < ids.length; i++) {
+                const id = ids[i];
+                const inList = id in listOf;
+                if (!inList && !(id in idToProject)) continue;
+                const name = names[i];
+                // Filter ghost tasks — Things 3 sometimes has empty-name entries
+                if (!name || name.length === 0) continue;
+                results.push({
+                    id: id,
+                    name: name,
+                    project: idToProject[id] || null,
+                    list: inList ? listOf[id] : "Anytime",
+                    dueDate: isoOrNull(dues[i]),
+                    notes: notes[i] || null,
+                    tags: tags[i] || "",
+                    status: statuses[i],
+                    creationDate: isoOrNull(created[i]),
+                    modificationDate: isoOrNull(modified[i])
+                });
             }
 
             return JSON.stringify(results);
@@ -258,9 +253,10 @@ actor ThingsService {
 
     // MARK: - Update a Task
 
-    /// Reschedule, set a deadline, and/or append tags on an existing task via
-    /// `things:///update`. At least one change parameter is required.
+    /// Rename, reschedule, set a deadline, and/or append tags on an existing
+    /// task via `things:///update`. At least one change parameter is required.
     ///
+    /// - title: replaces the task's name
     /// - when: "today", "tomorrow", "evening", "anytime", "someday",
     ///   "YYYY-MM-DD", or "YYYY-MM-DD@HH:MM"
     /// - deadline: "YYYY-MM-DD"
@@ -273,6 +269,7 @@ actor ThingsService {
     /// date, which surfaces as verificationFailed on a change that was a no-op.
     func updateTask(
         id: String,
+        title: String? = nil,
         when: String? = nil,
         deadline: String? = nil,
         addTags: [String]? = nil
@@ -282,6 +279,9 @@ actor ThingsService {
             URLQueryItem(name: "auth-token", value: token),
             URLQueryItem(name: "id", value: id)
         ]
+        if let title {
+            queryItems.append(URLQueryItem(name: "title", value: title))
+        }
         if let when {
             queryItems.append(URLQueryItem(name: "when", value: when))
         }

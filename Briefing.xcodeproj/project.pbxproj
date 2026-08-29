@@ -33,6 +33,7 @@
 		BDD75C6D64282978F0D6F6E5 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2A3FC7B4630BE48AB12FFC /* Task.swift */; };
 		E25ED1141C8A4B6A6D7D1E5B /* BriefingContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */; };
 		EEF8498A83D5C25E5DCAB48D /* Briefing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D284A0459B22196D0804EC26 /* Briefing.swift */; };
+		EFC87E7F6F8E943DB84C9E8F /* BriefingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7346EBF3E856724862CACE98 /* BriefingWindow.swift */; };
 		F45A901A04A8E2B0D45FF0E1 /* MaintenanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FFA4AE019D92DA5EAB21DA /* MaintenanceService.swift */; };
 /* End PBXBuildFile section */
 
@@ -65,6 +66,7 @@
 		51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
 		5249CCABFE2FA3C517FF4BD2 /* TaskSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSyncService.swift; sourceTree = "<group>"; };
 		5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingContentView.swift; sourceTree = "<group>"; };
+		7346EBF3E856724862CACE98 /* BriefingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingWindow.swift; sourceTree = "<group>"; };
 		76A72157FFC01B6930B02490 /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		968965E2AB961B193125B5C2 /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
 		9B95A1077CE94BBC92D45413 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 			isa = PBXGroup;
 			children = (
 				5AE98FC5EAD2F4C37F64A52A /* BriefingContentView.swift */,
+				7346EBF3E856724862CACE98 /* BriefingWindow.swift */,
 				1115A5FA0A942D4BB8FD776F /* MaintenanceView.swift */,
 				51AE3985151012E86BD2FCB3 /* MenuBarPopover.swift */,
 				4D3AD7F34765D338EB491FFE /* SettingsWindowController.swift */,
@@ -298,6 +301,7 @@
 				6B93B7126E3D239BCF1BFB04 /* BriefingEngine.swift in Sources */,
 				515B697264143391FA3493A2 /* BriefingHTMLExporter.swift in Sources */,
 				67CA25E98B0C5E3FD440B438 /* BriefingScheduler.swift in Sources */,
+				EFC87E7F6F8E943DB84C9E8F /* BriefingWindow.swift in Sources */,
 				5B5B77A00F8B02A2B94BA38B /* CalendarEvent.swift in Sources */,
 				98F42AB9CE30D06A44FCE43B /* CalendarService.swift in Sources */,
 				5AE1A59B6502A608E8967D64 /* ClaudeAPIService.swift in Sources */,

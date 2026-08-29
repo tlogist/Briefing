@@ -167,6 +167,19 @@ struct MenuBarPopover: View {
                 }
             }
             Spacer()
+            Button(action: {
+                NSApp.keyWindow?.close()  // dismiss the popover
+                BriefingWindowController.shared.show(
+                    calendarService: calendarService,
+                    thingsService: thingsService,
+                    settings: settings,
+                    briefingEngine: briefingEngine
+                )
+            }) {
+                Image(systemName: "arrow.up.forward.app")
+            }
+            .buttonStyle(.borderless)
+            .help("Open the full Briefing window")
             Button(action: { Task { await loadAll() } }) {
                 Image(systemName: "arrow.clockwise")
             }
@@ -1078,6 +1091,8 @@ struct MenuBarPopover: View {
         Task {
             do {
                 switch action {
+                case .rename(let newTitle):
+                    try await things.updateTask(id: task.id, title: newTitle)
                 case .reschedule(let when):
                     try await things.updateTask(id: task.id, when: when)
                     await MainActor.run {
@@ -1138,39 +1153,45 @@ struct MenuBarPopover: View {
 struct EventRow: View {
     let event: CalendarEvent
     let now: Date
+    // Popover rows stay dense; the Briefing window passes compact: false
+    var compact: Bool = true
 
     // An event is past once its end time has passed (all-day events are never greyed out)
     private var isPast: Bool {
         !event.isAllDay && event.endDate < now
     }
 
+    private var primaryFont: Font { compact ? .caption : .system(size: 14) }
+    private var secondaryFont: Font { compact ? .caption2 : .system(size: 12) }
+    private var timeColumnWidth: CGFloat { compact ? 65 : 78 }
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             if event.isAllDay {
                 Text("ALL DAY")
-                    .font(.caption2)
+                    .font(secondaryFont)
                     .foregroundStyle(.secondary)
-                    .frame(width: 65, alignment: .leading)
+                    .frame(width: timeColumnWidth, alignment: .leading)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(DateFormatting.time.string(from: event.startDate))
-                        .font(.caption2)
+                        .font(secondaryFont)
                     Text(DateFormatting.time.string(from: event.endDate))
-                        .font(.caption2)
+                        .font(secondaryFont)
                         .foregroundStyle(.secondary)
                 }
-                .frame(width: 65, alignment: .leading)
+                .frame(width: timeColumnWidth, alignment: .leading)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
-                    .font(.caption)
+                    .font(primaryFont)
                     .lineLimit(2)
                     .strikethrough(isPast)
 
                 if let location = event.location, !location.isEmpty {
                     Label(location, systemImage: "mappin")
-                        .font(.caption2)
+                        .font(secondaryFont)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -1179,7 +1200,7 @@ struct EventRow: View {
             Spacer()
 
             Text(event.calendarName)
-                .font(.caption2)
+                .font(secondaryFont)
                 .foregroundStyle(.tertiary)
         }
         .foregroundStyle(isPast ? .secondary : .primary)
@@ -1199,6 +1220,8 @@ struct ChatDisplayMessage: Identifiable {
 
 struct ChatBubble: View {
     let message: ChatDisplayMessage
+    // Popover bubbles stay dense; the Briefing window passes compact: false
+    var compact: Bool = true
 
     var body: some View {
         HStack {
@@ -1212,7 +1235,7 @@ struct ChatBubble: View {
                     Text(message.content)
                 }
             }
-            .font(.caption)
+            .font(compact ? .caption : .system(size: 13))
             .padding(8)
             .background(
                 message.role == .user
@@ -1232,6 +1255,7 @@ struct ChatBubble: View {
 /// Write actions a row's context menu can request. Values map directly onto
 /// ThingsService.updateTask parameters.
 enum TaskRowAction {
+    case rename(String)               // new task title
     case reschedule(when: String)     // "tomorrow", "someday", ...
     case setDeadline(String)          // "YYYY-MM-DD"
     case addTag(String)               // must be an existing Things tag
@@ -1245,51 +1269,69 @@ struct TaskRow: View {
     var onComplete: (() -> Void)? = nil
     var onAction: ((TaskRowAction) -> Void)? = nil
     var availableTags: [String] = []
+    // Popover rows stay dense (caption sizes); the Briefing window passes
+    // compact: false for 14/12pt workbench typography.
+    var compact: Bool = true
+
+    @State private var isHovering = false
+    @State private var showSchedulePicker = false
+    @State private var showDeadlinePicker = false
+    @State private var showRenameSheet = false
+
+    private var primaryFont: Font { compact ? .caption : .system(size: 14) }
+    private var secondaryFont: Font { compact ? .caption2 : .system(size: 12) }
+    private var checkboxIcon: CGFloat { compact ? 13 : 16 }
+    private var checkboxTarget: CGFloat { compact ? 20 : 26 }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .center, spacing: compact ? 6 : 8) {
             if isBusy {
                 ProgressView()
-                    .scaleEffect(0.4)
-                    .frame(width: 14, height: 14)
+                    .scaleEffect(compact ? 0.4 : 0.5)
+                    .frame(width: checkboxTarget, height: checkboxTarget)
             } else if let onComplete {
+                // The bare icon is a tiny click area — give the button a
+                // generous rectangular hit target so completing feels easy
                 Button(action: onComplete) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.caption)
-                        .foregroundStyle(task.isCompleted ? .green : .primary)
+                        .font(.system(size: checkboxIcon))
+                        .foregroundStyle(task.isCompleted ? .green : (isHovering ? Color.accentColor : .primary))
+                        .frame(width: checkboxTarget, height: checkboxTarget)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .help("Complete in Things")
             } else {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.caption)
+                    .font(.system(size: checkboxIcon))
                     .foregroundStyle(task.isCompleted ? .green : .primary)
+                    .frame(width: checkboxTarget, height: checkboxTarget)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.name)
-                    .font(.caption)
+                    .font(primaryFont)
                     .lineLimit(2)
                     .strikethrough(task.isCompleted)
 
                 HStack(spacing: 6) {
                     if let project = task.project {
                         Text(project)
-                            .font(.caption2)
+                            .font(secondaryFont)
                             .foregroundStyle(.secondary)
                     }
                     if task.isOverdue {
                         Text("\(task.daysOverdue)d overdue")
-                            .font(.caption2)
+                            .font(secondaryFont)
                             .foregroundStyle(.red)
                     } else if let due = task.dueDate {
                         Text("due \(DateFormatting.dayCompact.string(from: due))")
-                            .font(.caption2)
+                            .font(secondaryFont)
                             .foregroundStyle(.secondary)
                     }
                     if !task.tags.isEmpty {
                         Text(task.tags.map { "#\($0)" }.joined(separator: " "))
-                            .font(.caption2)
+                            .font(secondaryFont)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
@@ -1298,19 +1340,41 @@ struct TaskRow: View {
 
             Spacer()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, compact ? 2 : 4)
+        .padding(.horizontal, compact ? 0 : 4)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(isHovering && (onComplete != nil || onAction != nil)
+                      ? Color.primary.opacity(0.06) : Color.clear)
+        )
+        .onHover { isHovering = $0 }
         .contextMenu {
             if let onAction, !isBusy {
+                Button("Rename…") { showRenameSheet = true }
+                Divider()
                 Button("Push to Tomorrow") {
                     onAction(.reschedule(when: "tomorrow"))
                 }
                 Button("Move to Someday") {
                     onAction(.reschedule(when: "someday"))
                 }
+                Menu("Schedule") {
+                    Button("This Weekend (\(Self.menuDate(nextWeekday: 7)))") {
+                        onAction(.reschedule(when: Self.dateString(nextWeekday: 7)))
+                    }
+                    Button("Next Week (\(Self.menuDate(nextWeekday: 2)))") {
+                        onAction(.reschedule(when: Self.dateString(nextWeekday: 2)))
+                    }
+                    Button("In a Week") { onAction(.reschedule(when: Self.dateString(daysFromNow: 7))) }
+                    Divider()
+                    Button("Pick a Date…") { showSchedulePicker = true }
+                }
                 Menu("Set Deadline") {
                     Button("Today") { onAction(.setDeadline(Self.dateString(daysFromNow: 0))) }
                     Button("Tomorrow") { onAction(.setDeadline(Self.dateString(daysFromNow: 1))) }
                     Button("In a Week") { onAction(.setDeadline(Self.dateString(daysFromNow: 7))) }
+                    Divider()
+                    Button("Pick a Date…") { showDeadlinePicker = true }
                 }
                 if !availableTags.isEmpty {
                     Menu("Add Tag") {
@@ -1323,14 +1387,153 @@ struct TaskRow: View {
                 }
             }
         }
+        .popover(isPresented: $showRenameSheet) {
+            TaskRenameSheet(currentName: task.name) { newName in
+                onAction?(.rename(newName))
+            }
+        }
+        .popover(isPresented: $showSchedulePicker) {
+            TaskDatePickerSheet(
+                title: "Schedule \u{201C}\(task.name)\u{201D}",
+                confirmLabel: "Schedule"
+            ) { dateString in
+                onAction?(.reschedule(when: dateString))
+            }
+        }
+        .popover(isPresented: $showDeadlinePicker) {
+            TaskDatePickerSheet(
+                title: "Deadline for \u{201C}\(task.name)\u{201D}",
+                confirmLabel: "Set Deadline"
+            ) { dateString in
+                onAction?(.setDeadline(dateString))
+            }
+        }
     }
 
-    /// "YYYY-MM-DD" for the URL scheme's deadline parameter.
+    /// "YYYY-MM-DD" for the URL scheme's when/deadline parameters.
     private static func dateString(daysFromNow: Int) -> String {
         let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date())!
+        return Self.urlDateFormatter.string(from: date)
+    }
+
+    /// Next occurrence of a weekday (Gregorian: 1=Sun … 7=Sat), as YYYY-MM-DD.
+    private static func nextWeekdayDate(_ weekday: Int) -> Date {
+        let cal = Calendar.current
+        var comps = DateComponents()
+        comps.weekday = weekday
+        return cal.nextDate(
+            after: cal.startOfDay(for: Date()),
+            matching: comps,
+            matchingPolicy: .nextTime
+        ) ?? Date()
+    }
+
+    private static func dateString(nextWeekday weekday: Int) -> String {
+        Self.urlDateFormatter.string(from: nextWeekdayDate(weekday))
+    }
+
+    /// Short human label for menu items, e.g. "Sat Sep 5"
+    private static func menuDate(nextWeekday weekday: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE MMM d"
+        return formatter.string(from: nextWeekdayDate(weekday))
+    }
+
+    private static let urlDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return formatter
+    }()
+}
+
+// MARK: - Rename Popover
+
+/// Small popover for renaming a task — the new title goes through the same
+/// verified `things:///update` channel as every other write.
+struct TaskRenameSheet: View {
+    let currentName: String
+    let onConfirm: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @FocusState private var fieldFocused: Bool
+
+    private var trimmed: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Rename Task")
+                .font(.caption.weight(.semibold))
+            TextField("Task name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+                .frame(width: 280)
+                .focused($fieldFocused)
+                .onSubmit { confirm() }
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.borderless)
+                Spacer()
+                Button("Rename") { confirm() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(trimmed.isEmpty || trimmed == currentName)
+            }
+            .frame(width: 280)
+        }
+        .padding(12)
+        .onAppear {
+            name = currentName
+            fieldFocused = true
+        }
+    }
+
+    private func confirm() {
+        guard !trimmed.isEmpty, trimmed != currentName else { return }
+        onConfirm(trimmed)
+        dismiss()
+    }
+}
+
+// MARK: - Date Picker Popover
+
+/// Small calendar popover for "Pick a Date…" — used for both rescheduling
+/// (the `when` parameter) and deadlines. Returns YYYY-MM-DD, the format the
+/// Things URL scheme expects for both.
+struct TaskDatePickerSheet: View {
+    let title: String
+    let confirmLabel: String
+    let onConfirm: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var date = Date()
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .frame(maxWidth: 240)
+            DatePicker("", selection: $date, in: Date()..., displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .frame(width: 240)
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.borderless)
+                Spacer()
+                Button(confirmLabel) {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    onConfirm(formatter.string(from: date))
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .frame(width: 240)
+        }
+        .padding(12)
     }
 }
 

@@ -12,6 +12,8 @@ struct MaintenanceSection: View {
     /// tasks and invalidate stale briefings.
     let onApplied: () -> Void
     let onDismiss: () -> Void
+    // The Briefing window passes compact: false for 13/12pt typography
+    var compact: Bool = true
 
     private enum Phase {
         case generating
@@ -32,12 +34,12 @@ struct MaintenanceSection: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label("Tidy Up", systemImage: "wand.and.stars")
-                    .font(.subheadline.weight(.semibold))
+                    .font(compact ? .subheadline.weight(.semibold) : .system(size: 14, weight: .semibold))
                     .foregroundStyle(.teal)
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle")
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                 }
                 .buttonStyle(.borderless)
                 .help("Close without applying")
@@ -50,7 +52,7 @@ struct MaintenanceSection: View {
                         .scaleEffect(0.5)
                         .frame(width: 14, height: 14)
                     Text("Claude is reviewing your tasks…")
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
@@ -58,18 +60,18 @@ struct MaintenanceSection: View {
             case .review:
                 if proposals.isEmpty {
                     Text("Nothing needs attention — your system looks healthy.")
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 4)
                 } else {
                     ForEach($proposals) { $proposal in
-                        ProposedActionRow(proposal: $proposal)
+                        ProposedActionRow(proposal: $proposal, compact: compact)
                     }
 
                     HStack {
                         Button(action: applyApproved) {
                             Text("Apply \(approvedCount) action\(approvedCount == 1 ? "" : "s")")
-                                .font(.caption)
+                                .font(compact ? .caption : .system(size: 13))
                         }
                         .buttonStyle(.bordered)
                         .disabled(approvedCount == 0)
@@ -77,7 +79,7 @@ struct MaintenanceSection: View {
                         Spacer()
 
                         Text("\(proposals.count) proposed")
-                            .font(.caption2)
+                            .font(compact ? .caption2 : .system(size: 12))
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -88,7 +90,7 @@ struct MaintenanceSection: View {
                         .scaleEffect(0.5)
                         .frame(width: 14, height: 14)
                     Text("Applying \(current) of \(total)…")
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
@@ -99,26 +101,26 @@ struct MaintenanceSection: View {
                         "\(applied) action\(applied == 1 ? "" : "s") applied and verified",
                         systemImage: "checkmark.seal"
                     )
-                    .font(.caption)
+                    .font(compact ? .caption : .system(size: 13))
                     .foregroundStyle(.green)
                     ForEach(failures, id: \.self) { failure in
                         Label(failure, systemImage: "exclamationmark.triangle")
-                            .font(.caption2)
+                            .font(compact ? .caption2 : .system(size: 12))
                             .foregroundStyle(.red)
                     }
                     Button("Done") { onDismiss() }
                         .buttonStyle(.borderless)
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                 }
 
             case .error(let message):
                 VStack(alignment: .leading, spacing: 4) {
                     Text(message)
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                         .foregroundStyle(.red)
                     Button("Retry") { generate() }
                         .buttonStyle(.borderless)
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                 }
             }
         }
@@ -193,12 +195,13 @@ struct MaintenanceSection: View {
 
 private struct ProposedActionRow: View {
     @Binding var proposal: ProposedAction
+    var compact: Bool = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Button(action: { proposal.approved.toggle() }) {
                 Image(systemName: proposal.approved ? "checkmark.circle.fill" : "circle")
-                    .font(.caption)
+                    .font(compact ? .caption : .system(size: 13))
                     .foregroundStyle(proposal.approved ? .green : .secondary)
             }
             .buttonStyle(.borderless)
@@ -207,14 +210,14 @@ private struct ProposedActionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Label(proposal.kind.label, systemImage: proposal.kind.systemImage)
-                        .font(.caption2.weight(.semibold))
+                        .font(compact ? .caption2.weight(.semibold) : .system(size: 12, weight: .semibold))
                         .foregroundStyle(.teal)
                     Text(proposal.taskName)
-                        .font(.caption)
+                        .font(compact ? .caption : .system(size: 13))
                         .lineLimit(1)
                 }
                 Text(proposal.reason)
-                    .font(.caption2)
+                    .font(compact ? .caption2 : .system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }

@@ -124,6 +124,20 @@ implements them. Summary of what's binding here:
   profile or dev team needed. Entitlements file is NOT referenced in build settings
   (causes signing errors); calendar/Apple Events permissions are granted at runtime
   via Info.plist usage description strings.
+- **⚠️ The silent read-only failure mode: ANY fetchAllTasks failure → cached fallback →
+  no checkboxes, no quick-add.** Symptom reads as "clicking tasks does nothing." When
+  debugging it, check the mtime of `things-task-cache.json` in the iCloud folder — if it
+  stopped updating, live JXA reads are failing. Known causes:
+  1. **JXA timeout (the 2026-08-28 incident):** each Apple event against Things costs
+     tens of ms, so per-item property loops blow the timeout as task count or property
+     count grows. fetchAllTasks MUST use bulk reads (one event per property per
+     collection — see the PERFORMANCE INVARIANT comment on it; measured: per-item 5.4s,
+     bulk 0.8s against 24 tasks). Timeout guard is 10s.
+  2. **Automation (Apple Events) permission** — possible after signature changes (ad-hoc
+     signing changes per build). If macOS prompts "Briefing wants to control Things3",
+     approve it; recover a denied state with `tccutil reset AppleEvents
+     com.ammaturo.Briefing` + relaunch. A stable signing identity would make grants
+     durable across rebuilds.
 - **Run `xcodegen generate`** after changing `project.yml` — it regenerates the
   entire `.xcodeproj`. Never edit `.xcodeproj` by hand.
 - **Test target needs `GENERATE_INFOPLIST_FILE: YES`** and its own `CODE_SIGN_IDENTITY: "-"`.
@@ -138,6 +152,14 @@ implements them. Summary of what's binding here:
   changes: `xcodebuild -configuration Release build`, then `ditto` the Release product
   from DerivedData to /Applications, then relaunch. The Debug build in DerivedData is
   for development only — don't assume it's what the user is running.
+- **Two surfaces, one set of services.** The popover (MenuBarPopover, fixed 360×520) is
+  the glance surface; the Briefing window (BriefingWindow.swift) is the resizable task
+  workbench, opened via the header's ↗ button. The window uses the SettingsWindowController
+  NSPanel pattern (`.nonactivatingPanel` — NSApp.activate() blanks the menu bar in an
+  LSUIElement app) but adds `.resizable` at `.normal` level. Both surfaces share the same
+  service instances and iCloud caches; each keeps its own view state (including separate
+  chat conversations). Write affordances in the window follow the same `writesEnabled`
+  gate (live Things + not cached) as the popover.
 
 ## Personal Calendar Cache (iCloud Drive)
 
