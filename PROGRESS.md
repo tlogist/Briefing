@@ -179,7 +179,7 @@ Extensive cross-cutting work spanning phases 4-5 and general polish.
 - [x] ThingsService (actor) — full JXA integration via osascript
 - [x] Fetch all tasks from all lists + projects in a single JXA call
 - [x] Ghost task filtering (empty names)
-- [x] 5-second timeout via DispatchSource timer on Process
+- [x] 5-second timeout via DispatchSource timer on Process (historical — raised to 10s on 2026-08-28)
 - [x] Complete task via JXA (`t.status = "completed"`)
 - [x] Create task via URL scheme (`things:///add?title=...&list=...`)
 - [x] Graceful handling: Things 3 not running, timeout, script errors
@@ -198,7 +198,7 @@ Extensive cross-cutting work spanning phases 4-5 and general polish.
   JSON. This also avoids hitting Things 3 with multiple automation requests.
 - **Process termination handler + DispatchSource timer for timeout.** We can't use
   `Task.sleep` for timeout because `Process` termination callbacks are not async.
-  Instead, a GCD timer fires after 5 seconds and calls `process.terminate()`.
+  Instead, a GCD timer fires after the timeout (5s then; 10s since 2026-08-28) and calls `process.terminate()`.
 - **ThingsError.notRunning detected two ways:** (1) pre-flight check via
   `NSWorkspace.shared.runningApplications` before launching osascript, and
   (2) parsing stderr for "is not running" / "Connection is invalid" if the
@@ -498,7 +498,7 @@ From the briefing command and log entries:
 - **Create tasks:** URL scheme `things:///add?title=...&notes=...&list=today` (JXA make/push doesn't work)
 - **Tasks created via URL scheme land in Inbox**
 - **Ghost tasks:** Empty-name tasks exist — filter them out
-- **Timeout:** 5-second timeout on JXA calls (Things 3 can hang)
+- **Timeout:** 5-second timeout on JXA calls (Things 3 can hang) — historical; now 10s
 - **Lists to pull:** Inbox, Today, Upcoming, Anytime, Someday
 - **For each task:** name, project, due date, notes
 
@@ -557,7 +557,7 @@ struct OAuthAuth: AuthProvider {   // "Authorization: Bearer" header
 1. Add Apple Events entitlement
 2. ThingsService.swift — JXA via Process
 3. Task model
-4. Read from all lists, handle ghost tasks, 5-second timeout
+4. Read from all lists, handle ghost tasks, 5-second timeout (historical — now 10s)
 
 ### Phase 3: Task File I/O + Sync
 1. MarkdownParser — parse todo.md sections, projects, checkboxes, metadata

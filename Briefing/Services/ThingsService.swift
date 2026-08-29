@@ -15,7 +15,7 @@ import Foundation
 // - App name is "Things 3" (with space) on older installs, "Things3" on newer
 // - Ghost tasks with empty names exist and must be filtered
 // - The `list` URL param expects a project/area title; built-in lists use `when`
-// - Things 3 can hang on launch, so we enforce a 5-second timeout
+// - Things 3 can hang on launch, so we enforce a 10-second timeout
 // - The write auth token lives in the keychain (service things-url-auth-token)
 actor ThingsService {
     // 10s guard against a hung Things; the bulk fetch normally runs <1s.
@@ -45,10 +45,11 @@ actor ThingsService {
     ///
     /// PERFORMANCE INVARIANT: every property is read as a BULK Apple Event
     /// (one event per property per collection), never in a per-item loop.
-    /// Each Apple event costs tens of milliseconds against Things — a per-item
-    /// loop over ~25 tasks exceeded the JXA timeout (measured 5.4s) and made
-    /// every fetch silently fall back to the cached snapshot, which put the
-    /// whole app into read-only mode. The bulk form runs in under a second.
+    /// Each Apple event costs tens of milliseconds against Things, so cost
+    /// scales with EVENT count — a per-item loop once blew the JXA timeout
+    /// and silently put the whole app into cached read-only mode. Measured
+    /// figures live in ~/code_ThingsEngage/INVARIANTS.md §9 (the single home
+    /// for them). The bulk form runs in under a second.
     func fetchAllTasks() async throws -> [BriefingTask] {
         let script = """
         (() => {
@@ -64,19 +65,32 @@ actor ThingsService {
                 try { listIds[L] = app.lists.byName(L).toDos.id(); } catch(e) { listIds[L] = []; }
             }
 
-            // 2. Project ownership: one ids event per project
-            const projs = app.projects;
-            const projNames = projs.name();
+            // 2. Project ownership: ONE bulk event — the id-aligned project
+            // name of every to-do (null when the task isn't in a project),
+            // so cost stays O(1) events as project count grows. Falls back
+            // to the per-project ids loop (O(projects) events) if the bulk
+            // form ever errors.
+            const T = app.toDos;
+            const ids = T.id();
             const idToProject = {};
-            for (let pi = 0; pi < projNames.length; pi++) {
-                let pids = [];
-                try { pids = projs[pi].toDos.id(); } catch(e) {}
-                for (const pid of pids) { idToProject[pid] = projNames[pi]; }
+            let bulkProjectNames = null;
+            try { bulkProjectNames = T.project.name(); } catch(e) {}
+            if (bulkProjectNames) {
+                for (let i = 0; i < ids.length; i++) {
+                    if (bulkProjectNames[i] !== null) idToProject[ids[i]] = bulkProjectNames[i];
+                }
+            } else {
+                const projs = app.projects;
+                const projNames = projs.name();
+                for (let pi = 0; pi < projNames.length; pi++) {
+                    let pids = [];
+                    try { pids = projs[pi].toDos.id(); } catch(e) {}
+                    for (const pid of pids) { idToProject[pid] = projNames[pi]; }
+                }
             }
 
-            // 3. One global bulk read per property across all todos
-            const T = app.toDos;
-            const ids = T.id(), names = T.name(), dues = T.dueDate(), notes = T.notes(),
+            // 3. One global bulk read per remaining property across all todos
+            const names = T.name(), dues = T.dueDate(), notes = T.notes(),
                   tags = T.tagNames(), statuses = T.status(),
                   created = T.creationDate(), modified = T.modificationDate();
 
@@ -264,9 +278,14 @@ actor ThingsService {
     ///   Tags MUST already exist in Things or they are silently dropped —
     ///   the URL scheme cannot create tags.
     ///
-    /// Verification is a modification-date bump: any applied update rewrites
-    /// the item. Caveat: setting a field to its current value may not bump the
-    /// date, which surfaces as verificationFailed on a change that was a no-op.
+    /// Verification is field-specific (INVARIANTS.md §14): each changed field
+    /// is read back and compared, because a modification-date bump alone
+    /// cannot catch a silently-dropped unknown tag, and Things reports mod
+    /// dates at whole-second granularity — two writes to one task in the same
+    /// second read back EQUAL dates, so strict `>` would false-fail rapid
+    /// sequential updates. Caveat: setting a field to its current value may
+    /// not bump the date, which can surface as verificationFailed on a change
+    /// that was a no-op when no field check applies.
     func updateTask(
         id: String,
         title: String? = nil,
@@ -295,12 +314,62 @@ actor ThingsService {
             throw ThingsError.scriptError("updateTask called with nothing to change")
         }
 
-        // Snapshot the modification date first — the bump after the write is
-        // the one generic ack the write-only URL scheme can't give us itself.
+        // Snapshot BEFORE the write (§14 step 1) — the read-back is compared
+        // against this. Then verify each changed field, not just the mod date.
         let before = try await fetchTaskState(id: id)
+        let expectedActivationYmd = Self.expectedActivationYmd(forWhen: when)
         try await openThingsURL(command: "update", queryItems: queryItems)
         try await verifyWrite(id: id, description: "update") { state in
-            state.modificationMs > before.modificationMs
+            // >= not >: mod dates are whole-second, so a same-second write
+            // legitimately reads back equal. The field checks below are what
+            // prove the write landed; the strict bump is only required when
+            // no field is checkable (e.g. when="anytime" alone), because
+            // >= is vacuously true if nothing was written at all.
+            guard state.modificationMs >= before.modificationMs else { return false }
+            var fieldChecked = false
+            if let title {
+                fieldChecked = true
+                guard state.name == title else { return false }
+            }
+            if let deadline {
+                fieldChecked = true
+                guard state.dueYmd == deadline else { return false }
+            }
+            if let addTags, !addTags.isEmpty {
+                // The URL scheme silently drops unknown tags (§11) while the
+                // other params still bump the mod date — presence in the
+                // read-back is the only real proof. Case-insensitive: Things
+                // matches tags case-insensitively and reports canonical casing.
+                fieldChecked = true
+                let present = Set(state.tags.map { $0.lowercased() })
+                guard addTags.allSatisfy({ present.contains($0.lowercased()) }) else { return false }
+            }
+            if when != nil, let expectedActivationYmd {
+                fieldChecked = true
+                guard state.activationYmd == expectedActivationYmd else { return false }
+            }
+            return fieldChecked || state.modificationMs > before.modificationMs
+        }
+    }
+
+    /// The local "YYYY-MM-DD" a task's activation date should read back as
+    /// after `when` is applied, or nil when the value has no checkable date
+    /// ("anytime"/"someday" clear scheduling, so there is nothing to compare).
+    private static func expectedActivationYmd(forWhen when: String?) -> String? {
+        guard let when else { return nil }
+        switch when {
+        case "anytime", "someday":
+            return nil
+        case "today", "evening", "tomorrow":
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let base = when == "tomorrow"
+                ? Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                : Date()
+            return formatter.string(from: base)
+        default:
+            // "YYYY-MM-DD" or "YYYY-MM-DD@HH:MM" — the date part is the expectation
+            return String(when.prefix(10))
         }
     }
 
@@ -399,20 +468,39 @@ actor ThingsService {
 
     // MARK: - Write Verification (read-after-write)
 
-    /// Minimal task state read back over JXA to confirm a write landed.
+    /// Task state read back over JXA to confirm a write landed. Carries the
+    /// writable fields (name, tags, dates) — verification must check the field
+    /// that was changed, because a modification-date bump alone cannot detect
+    /// a silently-dropped unknown tag riding along with other params.
     private struct TaskState {
         let status: String
+        let name: String
         let modificationMs: Double
+        /// Tag names exactly as Things reports them.
+        let tags: [String]
+        /// Local-time "YYYY-MM-DD" of the scheduled (when) date, nil if unscheduled.
+        let activationYmd: String?
+        /// Local-time "YYYY-MM-DD" of the deadline, nil if none.
+        let dueYmd: String?
     }
 
     private func fetchTaskState(id: String) async throws -> TaskState {
+        // Dates are formatted to local YYYY-MM-DD in JXA (not toISOString,
+        // which is UTC and can shift the day for local-midnight dates).
         let script = """
         (() => {
             \(resolveApp)
             const t = app.toDos.byId("\(id)");
+            const ymd = d => d
+                ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+                : null;
             return JSON.stringify({
                 status: t.status(),
-                mod: t.modificationDate().getTime()
+                name: t.name(),
+                mod: t.modificationDate().getTime(),
+                tags: t.tagNames(),
+                activation: ymd(t.activationDate()),
+                due: ymd(t.dueDate())
             });
         })()
         """
@@ -420,10 +508,20 @@ actor ThingsService {
         guard let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let status = json["status"] as? String,
+              let name = json["name"] as? String,
               let mod = json["mod"] as? Double else {
             throw ThingsError.parseError("Could not read back task \(id)")
         }
-        return TaskState(status: status, modificationMs: mod)
+        // tagNames() is a single ", "-joined string (same format fetchAllTasks parses)
+        let tagString = json["tags"] as? String ?? ""
+        return TaskState(
+            status: status,
+            name: name,
+            modificationMs: mod,
+            tags: tagString.isEmpty ? [] : tagString.components(separatedBy: ", "),
+            activationYmd: json["activation"] as? String,
+            dueYmd: json["due"] as? String
+        )
     }
 
     /// Poll the task after a URL-scheme write until `check` passes. Things
@@ -581,7 +679,7 @@ enum ThingsError: LocalizedError {
         case .notRunning:
             return "Things 3 is not running. Launch it to enable task sync."
         case .timeout:
-            return "Things 3 did not respond within 5 seconds. It may be starting up — try again."
+            return "Things 3 did not respond within 10 seconds. It may be starting up — try again."
         case .scriptError(let msg):
             return "Things 3 script error: \(msg)"
         case .parseError(let msg):

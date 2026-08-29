@@ -25,11 +25,18 @@ implements them. Summary of what's binding here:
   time; `/usr/bin/security` is Apple-signed and created the item, so reads go
   through silently. Accepted tradeoff: any local process can read the token the
   same way. The token is **per-machine** — never sync or commit it.
-- **Every update is verified by read-after-write.** The URL scheme returns no
-  result and fails silently (wrong id, missing tag, bad token). After each
-  write, ThingsService polls the task back over JXA: completion checks
-  `status == "completed"`; generic updates check for a modification-date bump.
+- **Every update is verified by read-after-write, field-specifically.** The URL
+  scheme returns no result to `open`-style callers and fails silently (wrong id,
+  missing tag, bad token). After each write, ThingsService polls the task back
+  over JXA and checks the FIELD that was changed: completion → `status ==
+  "completed"`; title → name matches; reschedule/deadline → the date reads back;
+  tags → the tag is PRESENT in `tagNames` (a mod-date bump cannot catch a
+  silently-dropped unknown tag). The mod-date guard is `>=`, not `>` — Things
+  reports modification dates at whole-second granularity, so two writes to one
+  task in the same second read back equal dates and strict `>` false-fails.
   A write that isn't confirmed within ~2.5s throws `verificationFailed`.
+  (`add` is NOT verified yet — it returns no id without an x-callback-url
+  round trip, which is planned but not built.)
 - **The `list` URL param is a project/area TITLE, not a built-in list.**
   `list=today` matches nothing and the task silently lands in Inbox (this was
   a live bug until 2026-08-28). Target built-in lists with `when=` (today,
@@ -68,8 +75,9 @@ implements them. Summary of what's binding here:
   (`things:///add`) — see the write-channel rules above.
 - **Ghost tasks exist.** Things 3 sometimes has tasks with empty names. Always filter
   `task.name().length === 0` before processing.
-- **5-second timeout on JXA calls.** Things 3 can hang, especially if it's launching.
-  Always use `Process` with a timeout, never block the main thread.
+- **10-second timeout on JXA calls** (the same guard the Build System section's
+  read-only failure mode describes). Things 3 can hang, especially if it's
+  launching. Always use `Process` with a timeout, never block the main thread.
 - **Tasks appear in multiple lists.** A task scheduled for Today still appears
   in `lists.byName("Anytime").toDos()` (its project's default list). The JXA
   script enumerates lists in priority order (Inbox → Today → Upcoming → Anytime
@@ -131,8 +139,9 @@ implements them. Summary of what's binding here:
   1. **JXA timeout (the 2026-08-28 incident):** each Apple event against Things costs
      tens of ms, so per-item property loops blow the timeout as task count or property
      count grows. fetchAllTasks MUST use bulk reads (one event per property per
-     collection — see the PERFORMANCE INVARIANT comment on it; measured: per-item 5.4s,
-     bulk 0.8s against 24 tasks). Timeout guard is 10s.
+     collection — see the PERFORMANCE INVARIANT comment on it; the measured figures
+     live in `~/code_ThingsEngage/INVARIANTS.md` §9, their single home). Timeout
+     guard is 10s.
   2. **Automation (Apple Events) permission** — possible after signature changes (ad-hoc
      signing changes per build). If macOS prompts "Briefing wants to control Things3",
      approve it; recover a denied state with `tccutil reset AppleEvents
