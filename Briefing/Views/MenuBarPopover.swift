@@ -1329,6 +1329,16 @@ struct TaskRow: View {
                             .font(secondaryFont)
                             .foregroundStyle(.secondary)
                     }
+                    // Scheduled ("when") date — distinct from the deadline
+                    // above. Calendar glyph mirrors Things' Upcoming iconography.
+                    if let scheduled = task.upcomingScheduledDate {
+                        HStack(spacing: 2) {
+                            Image(systemName: "calendar")
+                            Text(DateFormatting.dayCompact.string(from: scheduled))
+                        }
+                        .font(secondaryFont)
+                        .foregroundStyle(.secondary)
+                    }
                     if !task.tags.isEmpty {
                         Text(task.tags.map { "#\($0)" }.joined(separator: " "))
                             .font(secondaryFont)

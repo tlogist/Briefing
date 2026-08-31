@@ -78,6 +78,20 @@ implements them. Summary of what's binding here:
   (`things:///add`) — see the write-channel rules above.
 - **Ghost tasks exist.** Things 3 sometimes has tasks with empty names. Always filter
   `task.name().length === 0` before processing.
+- **JXA dates carry fractional seconds — default ISO8601DateFormatter rejects them.**
+  JXA's `toISOString()` always emits milliseconds (`2026-09-11T04:00:00.000Z`); a
+  default-configured `ISO8601DateFormatter` returns nil for that shape, and the
+  failure is silent (`date(from:)` → nil, no error). This nil'd EVERY JXA-sourced
+  date (due/scheduled/creation/modification) until 2026-08-31 — task rows showed no
+  dates and idle-days staleness was always unknown. Parse JXA dates only through
+  `ThingsService.parseJXADate`, which tries `.withFractionalSeconds` first and the
+  plain shape second. Pinned by `ThingsServiceDateParsingTests`.
+- **The "when" date is `activationDate` in JXA, `dueDate` is the deadline.** Things'
+  UI "scheduled for" date and its deadline are separate fields; a task can have
+  either or both. `BriefingTask.scheduledDate` carries the activation date;
+  `upcomingScheduledDate` hides it for today/past activations (already implied by
+  the Today list) and when it lands on the same day as the deadline (the "due …"
+  label already shows that date) so rows only show it when it adds information.
 - **10-second timeout on JXA calls** (the same guard the Build System section's
   read-only failure mode describes). Things 3 can hang, especially if it's
   launching. Always use `Process` with a timeout, never block the main thread.

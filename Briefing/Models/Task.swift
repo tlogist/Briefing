@@ -49,11 +49,29 @@ struct BriefingTask: Identifiable, Sendable, Codable {
     // these keys) keep constructing/decoding unchanged.
     var creationDate: Date? = nil
     var modificationDate: Date? = nil
+    // Things "when" date (JXA activationDate) — the date the task is scheduled
+    // to start, distinct from dueDate (the deadline). Same optional-with-nil
+    // pattern as above so older cache JSON keeps decoding.
+    var scheduledDate: Date? = nil
 
     // Days since the task was last touched (nil when Things didn't report it)
     var idleDays: Int? {
         guard let modified = modificationDate else { return nil }
         return Calendar.current.dateComponents([.day], from: modified, to: Date()).day
+    }
+
+    // The scheduled date worth showing in a row: only future dates carry
+    // information — a task activating today or earlier already sits in Today,
+    // so echoing the date would be noise. Likewise suppressed when it matches
+    // the deadline day: the row's "due …" label already shows that date.
+    var upcomingScheduledDate: Date? {
+        guard let scheduled = scheduledDate, !isCompleted else { return nil }
+        let calendar = Calendar.current
+        if let due = dueDate, calendar.isDate(due, inSameDayAs: scheduled) { return nil }
+        guard let startOfTomorrow = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
+        ) else { return nil }
+        return scheduled >= startOfTomorrow ? scheduled : nil
     }
 
     // Whether this task is overdue based on its due date

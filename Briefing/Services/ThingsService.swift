@@ -40,6 +40,26 @@ actor ThingsService {
         })();
         """
 
+    // MARK: - JXA Date Parsing
+
+    // JXA's Date.prototype.toISOString() always emits fractional seconds
+    // ("2026-09-11T04:00:00.000Z"), which the DEFAULT ISO8601DateFormatter
+    // silently rejects (date(from:) → nil) — a formatter needs
+    // .withFractionalSeconds to accept them, but then rejects strings
+    // WITHOUT them. Try both shapes so either parses. Before this existed,
+    // every JXA-sourced date (due/creation/modification) decoded as nil.
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoPlain = ISO8601DateFormatter()
+
+    // Internal (not private) so the regression test can reach it via @testable.
+    static func parseJXADate(_ string: String) -> Date? {
+        isoFractional.date(from: string) ?? isoPlain.date(from: string)
+    }
+
     // MARK: - Read Tasks
 
     /// Fetch all open tasks from Things 3, grouped by list.
@@ -94,7 +114,8 @@ actor ThingsService {
             // 3. One global bulk read per remaining property across all todos
             const names = T.name(), dues = T.dueDate(), notes = T.notes(),
                   tags = T.tagNames(), statuses = T.status(),
-                  created = T.creationDate(), modified = T.modificationDate();
+                  created = T.creationDate(), modified = T.modificationDate(),
+                  activations = T.activationDate();
 
             const listOf = {};
             for (const L of listNames) {
@@ -117,6 +138,7 @@ actor ThingsService {
                     project: idToProject[id] || null,
                     list: inList ? listOf[id] : "Anytime",
                     dueDate: isoOrNull(dues[i]),
+                    activationDate: isoOrNull(activations[i]),
                     notes: notes[i] || null,
                     tags: tags[i] || "",
                     status: statuses[i],
@@ -137,16 +159,11 @@ actor ThingsService {
 
         let decoded = try JSONDecoder().decode([ThingsRawTask].self, from: data)
         return decoded.compactMap { raw in
-            // Parse the ISO date string from JXA
-            var dueDate: Date?
-            if let dueDateStr = raw.dueDate {
-                dueDate = ISO8601DateFormatter().date(from: dueDateStr)
-            }
+            let dueDate = raw.dueDate.flatMap(Self.parseJXADate)
 
             // Map Things 3 list name to our enum
             let list = TaskList(rawValue: raw.list) ?? .anytime
 
-            let iso = ISO8601DateFormatter()
             return BriefingTask(
                 id: raw.id,
                 name: raw.name,
@@ -158,8 +175,9 @@ actor ThingsService {
                 isCompleted: raw.status == "completed",
                 completionDate: nil,
                 source: .things3,
-                creationDate: raw.creationDate.flatMap { iso.date(from: $0) },
-                modificationDate: raw.modificationDate.flatMap { iso.date(from: $0) }
+                creationDate: raw.creationDate.flatMap(Self.parseJXADate),
+                modificationDate: raw.modificationDate.flatMap(Self.parseJXADate),
+                scheduledDate: raw.activationDate.flatMap(Self.parseJXADate)
             )
         }
     }
@@ -703,6 +721,7 @@ private struct ThingsRawTask: Decodable {
     let project: String?
     let list: String
     let dueDate: String?
+    let activationDate: String?
     let notes: String?
     let tags: String
     let status: String
