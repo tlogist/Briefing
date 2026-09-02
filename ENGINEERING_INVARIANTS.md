@@ -186,6 +186,21 @@ implements them. Summary of what's binding here:
   service instances and iCloud caches; each keeps its own view state (including separate
   chat conversations). Write affordances in the window follow the same `writesEnabled`
   gate (live Things + not cached) as the popover.
+- **Exposé selection requires an ACTIVATING window.** With `.nonactivatingPanel`,
+  macOS refuses to activate the app even when the user selects the window in
+  Exposé/Mission Control (verified 2026-09-02: an AX raise leaves `frontmost` false).
+  The system then hands focus back to the previously active app, whose window gets
+  re-raised over the panel — "comes forward, then jumps one back." No amount of
+  `orderFrontRegardless()` from observers fixes this, because no activation event
+  ever fires. Fix: the workbench panel omits `.nonactivatingPanel`; it uses
+  `WorkbenchPanel` (`canBecomeKey`/`canBecomeMain` true — stock NSPanel refuses main,
+  which Exposé's z-order restore needs) plus a `didBecomeActiveNotification` observer
+  that re-asserts front on the next runloop tick after activation churn.
+- **The menu-bar-blanking rationale is stale for the workbench.** SwiftUI's App
+  lifecycle gives Briefing a real main menu (6 items, verified via AX), so activating
+  the app shows Briefing's menus — no blanking. The Settings panel keeps
+  `.nonactivatingPanel` deliberately (a transient utility shouldn't steal activation),
+  not because activation is unsafe.
 
 ## Personal Calendar Cache (iCloud Drive)
 

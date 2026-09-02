@@ -7,16 +7,45 @@ import SwiftUI
 // schedule on the left, the task workbench (all lists, quick-add, Tidy Up)
 // on the right, with a window-scoped Claude chat below the tasks.
 //
-// Same NSPanel pattern as SettingsWindowController (nonactivating panel, so
-// the LSUIElement app never blanks the system menu bar), but resizable and
-// at normal window level so a large workbench isn't permanently on top.
+// A resizable panel at normal window level — a workbench, not a HUD.
+// Unlike SettingsWindowController's panel, this one is ACTIVATING: with
+// `.nonactivatingPanel`, macOS refuses to activate the app when the window
+// is selected in Exposé/Mission Control, then hands focus back to the
+// previously active app — whose window gets re-raised over ours ("comes
+// forward, then jumps one back"). Verified empirically 2026-09-02: an AX
+// raise leaves the app un-activatable (`frontmost` stays false) while the
+// panel is nonactivating. Activation is safe here — SwiftUI's App lifecycle
+// gives Briefing a real main menu, so the menu bar shows Briefing's menus
+// rather than blanking (see ENGINEERING_INVARIANTS).
+private final class WorkbenchPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 final class BriefingWindowController {
     static let shared = BriefingWindowController()
 
     private var panel: NSPanel?
     private var hostingView: NSHostingView<AnyView>?
+    private var activationObserver: NSObjectProtocol?
 
-    private init() {}
+    private init() {
+        // Fires when the system activates us (Exposé selection, or a click
+        // in the workbench). AppKit's own ordering during activation can
+        // leave the panel behind the previously frontmost window, so
+        // re-assert front on the next runloop tick.
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let panel = self?.panel, panel.isVisible else { return }
+            DispatchQueue.main.async {
+                panel.orderFrontRegardless()
+                panel.makeKey()
+            }
+        }
+    }
 
     func show(
         calendarService: CalendarService,
@@ -38,9 +67,9 @@ final class BriefingWindowController {
         let hostingView = NSHostingView(rootView: AnyView(view))
         self.hostingView = hostingView
 
-        let panel = NSPanel(
+        let panel = WorkbenchPanel(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 640),
-            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
