@@ -322,9 +322,6 @@ actor BriefingEngine {
 
             ### 🚩 Stale / Overdue
             Tasks that are overdue or haven't moved in a while as a bullet list. Be direct about what should be dropped, delegated, or rescheduled.
-
-            ### 👀 Family Awareness
-            Anything on the family calendar that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         case .tomorrow:
             return """
@@ -350,9 +347,6 @@ actor BriefingEngine {
 
             ### ⏳ Waiting On
             Items that are blocked on other people as a bullet list. Note who and what the next follow-up should be.
-
-            ### 👀 Family Awareness
-            Anything on the family calendar tomorrow that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         case .week:
             return """
@@ -387,9 +381,6 @@ actor BriefingEngine {
 
             ### 🚩 Stale / Overdue
             Tasks that are overdue or slipping as a bullet list. Be direct about what should be dropped, delegated, or rescheduled this week.
-
-            ### 👀 Family Awareness
-            Anything on the family calendar this week that Michael should know about (shared logistics, Noosh's commitments, overlapping obligations, etc.).
             """
         }
     }
