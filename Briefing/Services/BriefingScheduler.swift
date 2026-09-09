@@ -121,14 +121,30 @@ final class BriefingScheduler {
         let directoryPath = settings.taskDirectoryPath
 
         Task {
-            do {
-                // No UI status tracking needed — pass a no-op callback
-                let result = try await engine.generateBriefing(scope: scope) { _ in }
-                BriefingCache.save(result, for: scope, directoryPath: directoryPath)
-                await postNotification(label: label)
-            } catch {
-                print("BriefingScheduler: \(label) generation failed: \(error)")
+            // One retry covers the transient cases (Things still launching, a
+            // calendar-daemon restart, a Claude API hiccup). A second failure
+            // is reported, not hidden: a skipped briefing the user knows about
+            // beats one silently built on partial data.
+            var lastError: Error?
+            for attempt in 1...2 {
+                do {
+                    // No UI status tracking needed — pass a no-op callback
+                    let result = try await engine.generateBriefing(scope: scope) { _ in }
+                    BriefingCache.save(result, for: scope, directoryPath: directoryPath)
+                    await postNotification(label: label)
+                    return
+                } catch {
+                    lastError = error
+                    print("BriefingScheduler: \(label) generation failed (attempt \(attempt)): \(error)")
+                    if attempt == 1 {
+                        try? await Task.sleep(for: .seconds(60))
+                    }
+                }
             }
+            await postFailureNotification(
+                label: label,
+                reason: lastError?.localizedDescription ?? "unknown error"
+            )
         }
     }
 
@@ -220,6 +236,23 @@ final class BriefingScheduler {
             identifier: "briefing-\(label)-\(Date().timeIntervalSince1970)",
             content: content,
             trigger: nil  // deliver immediately
+        )
+
+        try? await UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Tell the user a scheduled briefing was skipped and why, so a missing
+    /// briefing never passes unnoticed (the failure used to go only to stdout).
+    private func postFailureNotification(label: String, reason: String) async {
+        let content = UNMutableNotificationContent()
+        content.title = "Briefing Skipped"
+        content.body = "Your \(label) briefing was not generated: \(reason)"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "briefing-\(label)-failed-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
         )
 
         try? await UNUserNotificationCenter.current().add(request)

@@ -22,12 +22,8 @@ import Foundation
 actor ThingsService {
     // 10s guard against a hung Things; the bulk fetch normally runs <1s.
     // (Was 5.0 — the per-item fetch grew past it and every read silently
-    // fell back to cache. Keep headroom, but never let the fetch creep up.)
+    // failed. Keep headroom, but never let the fetch creep up.)
     private let timeoutSeconds: Double = 10.0
-
-    /// Non-nil when the last fetch used cached tasks (i.e., Things 3 wasn't
-    /// accessible on this Mac). The UI reads this to show freshness.
-    private(set) var lastThingsCacheDate: Date?
 
     /// JXA snippet that resolves the Things app regardless of whether it's
     /// registered as "Things 3" (older versions) or "Things3" (newer versions).
@@ -208,55 +204,18 @@ actor ThingsService {
         return names
     }
 
-    // MARK: - Things 3 Task Cache
+    // MARK: - Today's Tasks With Status
 
-    /// Fetch all tasks with iCloud Drive cache fallback.
-    ///
-    /// If Things 3 is accessible: fetches live, writes cache, returns tasks.
-    /// If Things 3 fails (not running, timeout, permissions): falls back to
-    /// cached tasks from iCloud Drive (written by the personal Mac).
-    func fetchAllTasksWithCache(
-        cacheDirectoryPath: String
-    ) async -> [BriefingTask] {
+    /// Fetch today's open tasks, reporting how the read went so the UI can
+    /// show the right state. There is NO cached fallback: a failed read
+    /// returns no tasks plus the reason, never a stale snapshot (see
+    /// ENGINEERING_INVARIANTS.md, "Single Machine, Live Data Only").
+    func fetchTodayTasksWithStatus() async -> (tasks: [BriefingTask], status: ThingsFetchStatus) {
         do {
-            let tasks = try await fetchAllTasks()
-            // Success — write cache for the other Mac and clear cache indicator
-            ThingsCache.save(tasks: tasks, to: cacheDirectoryPath)
-            lastThingsCacheDate = nil
-            return tasks
-        } catch {
-            // Things 3 not accessible — fall back to cached tasks
-            if let cached = ThingsCache.load(from: cacheDirectoryPath) {
-                lastThingsCacheDate = cached.cachedAt
-                return cached.tasks
-            }
-            lastThingsCacheDate = nil
-            return []
-        }
-    }
-
-    /// Fetch today's tasks with iCloud Drive cache fallback.
-    func fetchTodayTasksWithCache(
-        cacheDirectoryPath: String
-    ) async -> (tasks: [BriefingTask], status: ThingsFetchStatus) {
-        do {
-            // Fetch all tasks once — filter for today, cache everything
             let allTasks = try await fetchAllTasks()
             let todayTasks = allTasks.filter { $0.list == .today && !$0.isCompleted }
-            ThingsCache.save(tasks: allTasks, to: cacheDirectoryPath)
-            lastThingsCacheDate = nil
             return (todayTasks, .live)
         } catch {
-            // Fall back to cached tasks, filtered to today
-            if let cached = ThingsCache.load(from: cacheDirectoryPath) {
-                lastThingsCacheDate = cached.cachedAt
-                let todayTasks = cached.tasks.filter {
-                    $0.list == .today && !$0.isCompleted
-                }
-                return (todayTasks, .cached(cached.cachedAt))
-            }
-            lastThingsCacheDate = nil
-
             // Preserve the original error type for UI messaging
             if let thingsError = error as? ThingsError,
                case .notRunning = thingsError {
@@ -731,11 +690,11 @@ private struct ThingsRawTask: Decodable {
 
 // MARK: - Fetch Status
 
-/// Result status from cache-aware Things fetch — lets the UI show
-/// the right message (live, cached with timestamp, not running, error).
+/// How a Things read went — lets the UI show the right message
+/// (live, not running, error). There is no "cached" state: a failed read
+/// yields no tasks, never a stale snapshot.
 enum ThingsFetchStatus {
     case live
-    case cached(Date)
     case notRunning
     case error(String)
 }

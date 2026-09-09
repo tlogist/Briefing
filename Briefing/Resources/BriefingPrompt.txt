@@ -30,8 +30,8 @@ You are a daily briefing assistant for Michael Ammaturo. Produce a concise, acti
 ### Michael's Schedule
 {{MICHAEL_EVENTS}}
 
-### Noosh's Schedule (for awareness, not Michael's commitments)
-{{NOOSH_EVENTS}}
+### Family Calendar — "Home", the joint calendar Michael shares with Noosh (for awareness; shared plans, not Michael's work commitments)
+{{FAMILY_EVENTS}}
 
 ### Scheduling Conflicts
 {{CONFLICTS}}

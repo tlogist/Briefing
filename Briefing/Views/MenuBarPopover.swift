@@ -22,8 +22,6 @@ struct MenuBarPopover: View {
     @State private var calendarDayOffset: Int = 0
     @State private var now = Date()
     @State private var lastRefreshed: Date?
-    @State private var personalCalCachedAt: Date?   // non-nil when using cached personal events
-    @State private var thingsCachedAt: Date?         // non-nil when using cached Things tasks
     @State private var briefingStatus: BriefingStatus = .idle
     // Cache generated briefings per scope so repeated clicks don't re-call Claude
     @State private var briefingCache: [BriefingScope: BriefingResult] = [:]
@@ -45,11 +43,11 @@ struct MenuBarPopover: View {
     @State private var newTaskTitle = ""
     @State private var isAddingTask = false
 
-    /// Writes need live Things on THIS machine. In cached mode (work Mac
-    /// reading things-task-cache.json) there is nothing to write to and no
-    /// local auth token, so all write affordances disappear.
+    /// Writes need a live Things read to have succeeded this load — that is
+    /// the only way `.available` is reached now that there is no cached
+    /// fallback. Anything else hides every write affordance.
     private var writesEnabled: Bool {
-        if case .available = thingsStatus { return thingsCachedAt == nil }
+        if case .available = thingsStatus { return true }
         return false
     }
 
@@ -152,16 +150,6 @@ struct MenuBarPopover: View {
                     } else if let refreshed = lastRefreshed {
                         Text("· \(relativeTime(since: refreshed))")
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    if let cachedAt = personalCalCachedAt {
-                        Text("· Personal cal: cached \(relativeTime(since: cachedAt))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    if let cachedAt = thingsCachedAt {
-                        Text("· Tasks: cached \(relativeTime(since: cachedAt))")
-                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -978,9 +966,7 @@ struct MenuBarPopover: View {
             let cal = Calendar.current
             let start = cal.date(byAdding: .day, value: calendarDayOffset, to: cal.startOfDay(for: Date()))!
             let end = cal.date(byAdding: .day, value: 1, to: start)!
-            let allEvents = try await calendarService.fetchEventsWithPersonalCache(
-                from: start, to: end, cacheDirectoryPath: settings.taskDirectoryPath
-            )
+            let allEvents = try await calendarService.fetchEvents(from: start, to: end)
             michaelEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .michael })
             familyEvents = deduplicateAllDayEvents(allEvents.filter { $0.owner == .family })
             conflicts = await calendarService.detectConflicts(in: allEvents)
@@ -988,10 +974,6 @@ struct MenuBarPopover: View {
                 in: allEvents,
                 minimumMinutes: settings.minimumFreeWindowMinutes
             )
-
-            // Show cache freshness if personal events came from cache
-            // (set by fetchEventsWithPersonalCache when no active iCloud events found)
-            personalCalCachedAt = await calendarService.lastPersonalCalCacheDate
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -1030,28 +1012,21 @@ struct MenuBarPopover: View {
     }
 
     private func loadTasks() async {
-        let result = await thingsService.fetchTodayTasksWithCache(
-            cacheDirectoryPath: settings.taskDirectoryPath
-        )
+        // Live read only. On failure the list goes EMPTY and the status says
+        // why — never a stale snapshot dressed up as today's tasks.
+        let result = await thingsService.fetchTodayTasksWithStatus()
         todayTasks = result.tasks
 
         switch result.status {
         case .live:
             thingsStatus = .available
-            thingsCachedAt = nil
             // Live Things → refresh the tag vocabulary for the tag menu.
             // Keep the old list on a transient read failure.
             tagNames = (try? await thingsService.fetchTagNames()) ?? tagNames
-        case .cached(let cachedAt):
-            thingsStatus = .available
-            thingsCachedAt = cachedAt
         case .notRunning:
-            // Show cached tasks if we have them, but note Things isn't running
-            thingsStatus = result.tasks.isEmpty ? .notRunning : .available
-            thingsCachedAt = await thingsService.lastThingsCacheDate
+            thingsStatus = .notRunning
         case .error(let msg):
-            thingsStatus = result.tasks.isEmpty ? .error(msg) : .available
-            thingsCachedAt = await thingsService.lastThingsCacheDate
+            thingsStatus = .error(msg)
         }
     }
 

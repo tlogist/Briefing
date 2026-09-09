@@ -48,9 +48,10 @@ implements them. Summary of what's binding here:
 - **Tags cannot be created via the URL scheme.** `add-tags` with a tag that
   doesn't exist in Things is silently dropped. New tags must be created once in
   the Things UI. Use `add-tags` (appends), never `tags` (replaces).
-- **Writes require live Things on THIS machine.** When the app is running off
-  the iCloud task cache (work Mac, Things not accessible), there is nothing to
-  write to and no local token — any write UI must be disabled in cached mode.
+- **Writes require a successful live Things read this load.** `writesEnabled` is
+  true only after `fetchAllTasks` / `fetchTodayTasks` succeeded; there is no cached
+  mode any more (removed 2026-09-09), so a failed read empties the list, shows the
+  error, and hides every write affordance.
 
 ### AI maintenance triage (Tidy Up)
 
@@ -103,14 +104,15 @@ implements them. Summary of what's binding here:
 
 ## Calendar Rules
 
-- **cal:Home is the shared FAMILY calendar** (as of 2026-08-28; it was previously treated
-  as Noosh's personal calendar). Events from `cal:Home` appear in a separate
-  "Family Calendar" section — never merged into Michael's main timeline. Noosh's
-  commitments still land here, but so do shared/family events.
-- **Legacy cache compatibility:** pre-rename builds encoded the owner as `"noosh"`.
-  `CalendarOwner.init(from:)` maps `"noosh"` → `.family` so cross-machine cache files
-  (`personal-calendar-cache.json`) keep decoding while the two Macs are on different
-  builds. Keep that mapping until both Macs run post-rename builds.
+- **cal:Home is the ONE joint calendar Michael shares with Noosh** (renamed from
+  "Noosh's calendar" 2026-08-28; confirmed 2026-09-09 that no separate Noosh calendar
+  exists). Events from `cal:Home` appear in a separate "Family Calendar" section — never
+  merged into Michael's main timeline, never in conflict detection.
+- **The prompt template and the substitution code must agree on placeholder names.**
+  `BriefingPrompt.txt` carried `{{NOOSH_EVENTS}}` for twelve days after the code switched
+  to `{{FAMILY_EVENTS}}`; Claude received the literal placeholder and Home events never
+  reached a briefing. When renaming a placeholder, grep the `.txt` resource too — the
+  compiler cannot catch it.
 - **All other Apple calendars are Michael's** — merge into the main timeline alongside
   work calendar events.
 - **Free windows must be ≥45 minutes** to be flagged as useful for deep work.
@@ -149,10 +151,9 @@ implements them. Summary of what's binding here:
   profile or dev team needed. Entitlements file is NOT referenced in build settings
   (causes signing errors); calendar/Apple Events permissions are granted at runtime
   via Info.plist usage description strings.
-- **⚠️ The silent read-only failure mode: ANY fetchAllTasks failure → cached fallback →
-  no checkboxes, no quick-add.** Symptom reads as "clicking tasks does nothing." When
-  debugging it, check the mtime of `things-task-cache.json` in the iCloud folder — if it
-  stopped updating, live JXA reads are failing. Known causes:
+- **⚠️ The read-only failure mode: ANY fetchAllTasks failure → empty task list + error
+  text, no checkboxes, no quick-add.** (Until 2026-09-09 it fell back to a stale iCloud
+  cache instead, which hid the failure and showed completed tasks as open.) Known causes:
   1. **JXA timeout (the 2026-08-28 incident):** each Apple event against Things costs
      tens of ms, so per-item property loops blow the timeout as task count or property
      count grows. fetchAllTasks MUST use bulk reads (one event per property per
@@ -183,9 +184,9 @@ implements them. Summary of what's binding here:
   workbench, opened via the header's ↗ button. The window uses the SettingsWindowController
   NSPanel pattern (`.nonactivatingPanel` — NSApp.activate() blanks the menu bar in an
   LSUIElement app) but adds `.resizable` at `.normal` level. Both surfaces share the same
-  service instances and iCloud caches; each keeps its own view state (including separate
-  chat conversations). Write affordances in the window follow the same `writesEnabled`
-  gate (live Things + not cached) as the popover.
+  service instances and the iCloud briefing files; each keeps its own view state (including
+  separate chat conversations). Write affordances in the window follow the same
+  `writesEnabled` gate (live Things read succeeded) as the popover.
 - **Exposé selection requires an ACTIVATING window.** With `.nonactivatingPanel`,
   macOS refuses to activate the app even when the user selects the window in
   Exposé/Mission Control (verified 2026-09-02: an AX raise leaves `frontmost` false).
@@ -202,57 +203,48 @@ implements them. Summary of what's binding here:
   `.nonactivatingPanel` deliberately (a transient utility shouldn't steal activation),
   not because activation is unsafe.
 
-## Personal Calendar Cache (iCloud Drive)
+## Single Machine, Live Data Only (since 2026-09-09)
 
-- **Personal Mac writes, work Mac reads.** When iCloud calendars have actual
-  events, the app writes them to `personal-calendar-cache.json` in the shared
-  iCloud Drive folder. When iCloud calendars are empty, it reads and merges
-  cached events.
-- **Detection is EVENT-BASED, not source-based.** Both Macs may have iCloud
-  configured in Apple Calendar — the work Mac just has blank iCloud calendars.
-  Checking `store.sources` would return true on both. Instead, scan a 14-day
-  window for events from any personal source. If any exist → write. If zero →
-  read cache.
-- **Personal sources are defined in `CalendarService.personalSources`.** Currently:
-  iCloud, Bendicoot, Planning Board. Add new personal-only sources there.
-- **Cache window is 14 days.** The writer always caches a full 14-day window
-  regardless of the requested date range, so the work Mac has enough data for
-  both the popover (today) and the week briefing.
-- **Cache file is distinct from other files.** It lives at
-  `{taskDirectoryPath}/personal-calendar-cache.json` — do not confuse with the
-  old `.txt` cache or `PopoverDataCache` (which uses UserDefaults).
-- **Cached events are merged, not replaced.** The work Mac combines its live
-  work events with cached personal events. All-day events sort first, then
-  chronological.
-
-## Things 3 Task Cache (iCloud Drive)
-
-- **Same write/read pattern as the calendar cache.** Personal Mac writes all
-  Things 3 tasks to `things-task-cache.json`; work Mac reads as fallback when
-  Things 3 is inaccessible (not running, permissions, macOS version issues).
-- **Detection is error-based.** Unlike the calendar cache (which checks for
-  iCloud events), the Things cache simply tries to fetch and falls back on any
-  failure. If Things works → write cache. If Things fails → read cache.
-- **Cache contains ALL tasks, not just today's.** The writer caches every list
-  (Inbox, Today, Upcoming, Anytime, Someday) so the work Mac can use the full
-  set for briefing generation. The popover filters to Today at read time.
+- **There is no work Mac and no cross-machine fallback.** The iCloud-Drive caches
+  `personal-calendar-cache.json` and `things-task-cache.json`, the "personal events
+  exist → write, else read cache" heuristic, and the `"noosh"` legacy decoder were all
+  removed on 2026-09-09. Do NOT reintroduce a cached fallback for calendar or task
+  reads: on a single machine a fallback path can only ever show wrong data. Both halves
+  of the 2026-09-09 incident were that path firing — a deleted event and a completed
+  task shown as live, and the MA.com account's events missing because the cache never
+  held them. The orphaned cache files in the iCloud folder are inert and can be deleted.
+- **Calendar reads use a FRESH `EKEventStore` per fetch** (`CalendarService.makeStore`).
+  The app ran six days on one store; after calaccessd (the daemon EventKit talks to,
+  relaunched on demand) restarted underneath it, every query returned zero events — no
+  error, nothing logged — while a new store in a shell script saw everything. A store
+  that reports zero calendars throws `CalendarError.noCalendars` instead of returning
+  an empty list.
+- **A failed read fails loudly.** Popover/window: empty list + error text, write
+  affordances hidden. Briefing engine: a Things or calendar failure aborts the briefing
+  (`gatherTasksData` throws). Scheduler: one retry after 60 s, then a "Briefing Skipped"
+  notification carrying the reason.
+- **Diagnosing "wrong events" from a shell:** iTerm already has Full Access to Calendars,
+  so a `swift` script using EventKit enumerates sources / calendars / events without a
+  TCC prompt. Compare against what the app shows; if they differ, the app's read path is
+  broken, not the data. The michael@michaelammaturo.com account appears as source
+  "MA.com" / calendar "MichaelAmmaturo.com".
+- The `.task-system/personal-calendar-cache.txt` in the iCloud folder belongs to the
+  Claude Code `/briefing` pipeline (`ical.py`, `cal-sync.sh`), not to this app.
 
 ## Briefing Cache (iCloud Drive)
 
 - **Briefings are cached to iCloud Drive, not UserDefaults.** Files live at
   `{taskDirectoryPath}/briefing-{scope}.json` (e.g., `briefing-today.json`,
-  `briefing-week.json`). Generate on one Mac, the other picks it up via
-  iCloud sync — no need to re-call Claude on each machine.
-- **Never delete the shared cache file for staleness.** The iCloud Drive file
-  is a shared resource between machines. One Mac must not delete what the other
-  wrote just because its local task data differs. `invalidateStaleBriefings()`
+  `briefing-week.json`). They persist across relaunches and are how the
+  scheduler hands a finished briefing to the popover — no re-call to Claude.
+- **Never delete the briefing file for staleness.** `invalidateStaleBriefings()`
   only clears the **in-memory** `briefingCache` dictionary — the file on disk
   stays and gets naturally overwritten when a new briefing is generated.
 - **Load from disk AFTER invalidation, not before.** In `loadAll()`, the order
   is: (1) fetch fresh calendar + tasks, (2) `invalidateStaleBriefings()` clears
   stale in-memory entries, (3) reload from iCloud Drive files to fill empty slots.
   If you load before invalidation, the freshly-loaded briefing gets immediately
-  nuked because the other Mac's task fingerprint doesn't match local tasks.
+  nuked when its task fingerprint (from generation time) no longer matches.
 - **`showOrGenerate` checks in-memory cache first.** If a briefing is in
   `briefingCache[scope]`, it's shown instantly. Otherwise Claude is called.
   The iCloud reload in `loadAll()` is what populates in-memory from disk.

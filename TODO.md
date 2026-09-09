@@ -23,9 +23,12 @@
 ## iCloud Drive Sync
 - [x] Cache personal calendar events (iCloud, Bendicoot, Planning Board) to iCloud Drive for work Mac
 - [x] Cache Things 3 tasks to iCloud Drive for work Mac fallback
+- [x] 2026-09-09: REMOVED both cross-machine caches — no work Mac any more, and the fallback
+      showed a deleted event + a completed task as live (see ENGINEERING_INVARIANTS.md,
+      "Single Machine, Live Data Only")
 - [x] Investigate Things 3 task cache duplicates on work Mac — tasks scheduled for Today/Upcoming also appeared under Anytime; fixed JXA dedup
 - [ ] Share generated briefings (today + week) via iCloud Drive so they don't need to be regenerated on each computer
-- [ ] Get Things 3 automation working on work Mac under Tahoe (JXA fails with -1701; may need new Apple Events permissions model)
+- [ ] ~~Get Things 3 automation working on work Mac under Tahoe~~ (dropped 2026-09-09 — no work Mac)
 
 ## Briefing Generation
 - [x] Fix Weekly briefing — currently generates today's briefing instead of a proper week view

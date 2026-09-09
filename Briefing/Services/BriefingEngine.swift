@@ -35,13 +35,15 @@ actor BriefingEngine {
 
         onStatusChange(.gatheringData)
 
-        // Gather all data in parallel — Things 3 is the sole task source
+        // Gather all data in parallel — Things 3 is the sole task source.
+        // A failed calendar or Things read ABORTS the briefing: no briefing is
+        // better than one Claude builds from empty or stale inputs.
         async let calendarData = gatherCalendarData(scope: scope)
         async let tasksData = gatherTasksData()
         async let logData = gatherLogData()
 
         let calendar = try await calendarData
-        let tasks = await tasksData
+        let tasks = try await tasksData
         let logTail = await logData
 
         onStatusChange(.callingClaude)
@@ -176,26 +178,18 @@ actor BriefingEngine {
     }
 
     private func gatherCalendarData(scope: BriefingScope) async throws -> CalendarData {
-        let cachePath = settings.taskDirectoryPath
         let allEvents: [CalendarEvent]
         switch scope {
         case .today:
-            allEvents = try await calendarService.fetchTodayEventsWithCache(
-                cacheDirectoryPath: cachePath
-            )
+            allEvents = try await calendarService.fetchTodayEvents()
         case .tomorrow:
             // Fetch only tomorrow's events (start-of-tomorrow to end-of-tomorrow)
             let cal = Calendar.current
             let tomorrowStart = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date()))!
             let tomorrowEnd = cal.date(byAdding: .day, value: 1, to: tomorrowStart)!
-            allEvents = try await calendarService.fetchEventsWithPersonalCache(
-                from: tomorrowStart, to: tomorrowEnd, cacheDirectoryPath: cachePath
-            )
+            allEvents = try await calendarService.fetchEvents(from: tomorrowStart, to: tomorrowEnd)
         case .week:
-            allEvents = try await calendarService.fetchWeekEventsWithCache(
-                daysAhead: settings.calendarDaysAhead,
-                cacheDirectoryPath: cachePath
-            )
+            allEvents = try await calendarService.fetchWeekEvents(daysAhead: settings.calendarDaysAhead)
         }
         let michael = allEvents.filter { $0.owner == .michael }
         let family = allEvents.filter { $0.owner == .family }
@@ -212,10 +206,11 @@ actor BriefingEngine {
         )
     }
 
-    private func gatherTasksData() async -> [BriefingTask] {
-        await thingsService.fetchAllTasksWithCache(
-            cacheDirectoryPath: settings.taskDirectoryPath
-        )
+    /// Throws when Things is unreachable — the caller aborts the briefing
+    /// rather than generating one with no tasks (or, before 2026-09-09, a
+    /// stale cached set that showed completed tasks as still open).
+    private func gatherTasksData() async throws -> [BriefingTask] {
+        try await thingsService.fetchAllTasks()
     }
 
     /// Only reads the activity log now — tasks come from Things 3 directly.
